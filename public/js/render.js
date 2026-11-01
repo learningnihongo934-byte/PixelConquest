@@ -223,7 +223,7 @@ export class Renderer {
       const [sx, sy] = this.toScreen(a.fx + 0.5, a.fy + 0.5);
       c.strokeStyle = '#fff'; c.lineWidth = 2;
       c.beginPath(); c.moveTo(sx - 6, sy - 6); c.lineTo(sx + 6, sy + 6); c.moveTo(sx + 6, sy - 6); c.lineTo(sx - 6, sy + 6); c.stroke();
-      this.label(Math.round(a.troops).toLocaleString(), sx, sy - 10, 12, '#fff');
+      this.label(a.t ? Math.round(a.troops).toLocaleString() : 'EXPANDING', sx, sy - 10, a.t ? 12 : 10, a.t ? '#fff' : '#cfe8a0');
     }
 
     // ships, planes, missiles (interpolated between ticks by alpha)

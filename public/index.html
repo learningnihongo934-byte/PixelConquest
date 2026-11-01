@@ -76,7 +76,7 @@
   <div id="topbar">
     <div class="stat" title="Troops / troop cap"><span class="ico" style="--i:25"></span><b id="sTroops">0</b><small id="sCap"></small></div>
     <div class="stat" title="Gold (+ per second)"><span class="ico" style="--i:26"></span><b id="sGold">0</b><small id="sGoldR"></small></div>
-    <div class="stat" title="Science. Unlocks tiers 2, 3 and 4"><span class="ico" style="--i:5"></span><b id="sTier">T1</b><div class="bar"><i id="sSci"></i></div></div>
+    <div class="stat" title="Your share of the world's land. The bar fills as you near the win target"><span class="ico" style="--i:29"></span><b id="sLand">0%</b><div class="bar"><i id="sWin"></i></div></div>
     <div class="stat ratio" title="How many of your troops each attack, expansion, boat or paradrop uses ( [ ] keys or Shift+scroll)">
       <span>Send</span><input type="range" id="ratio" min="5" max="100" step="5" value="30">
       <b id="ratioV">30%</b><small id="ratioN"></small>
@@ -122,9 +122,10 @@
     <h2>How to play</h2>
     <ul>
       <li><b>Spawn:</b> click anywhere on land during the countdown to pick your start.</li>
-      <li><b>Expand & attack:</b> left-click wilderness or an enemy. You send the <b>Send %</b> of your troops, and they push toward where you clicked. Click again to steer.</li>
+      <li><b>Expand:</b> left-click wilderness. Expanding is free: your troops stay home and never run out, a bigger <b>Send %</b> just expands faster. It keeps going until it hits a border. Click again to steer, <b>V</b> to stop.</li>
+      <li><b>Attack:</b> left-click an enemy. You send the <b>Send %</b> of your troops and they fight their way toward where you clicked. Only fighting costs troops.</li>
       <li><b>Right-click</b> (long-press on phones) any tile for every option: boats, paradrops, missiles, sabotage, alliances, emotes, pings.</li>
-      <li><b>Build</b> from the bar at the bottom (or hotkeys 1-8, Q-T, A-H). Research Labs give science, which unlocks tiers 2-4.</li>
+      <li><b>Build</b> from the bar at the bottom (or hotkeys 1-8, Q-T, A-G). Everything is available from the start; prices rise with each copy you own.</li>
       <li><b>Abilities:</b> Z Blitz, X Entrench, C Rally. <b>V</b> recalls attacks. <b>Space</b> jumps home. Drag to pan, scroll to zoom.</li>
       <li><b>Terrain matters:</b> mountains, jungle and rivers are slow and easy to defend. Bunkers and Fortresses make land much harder to take.</li>
       <li><b>Fog of war:</b> enemy structures are hidden unless they are near your land, a Watchtower or a Radar. Enemy troop counts are estimates unless you are allied, spying, or have a Radar.</li>

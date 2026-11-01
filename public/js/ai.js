@@ -4,12 +4,12 @@ import { STRUCTURES, AI_DIFFICULTY, MISSILES, TERRAIN } from './data.js';
 
 // build wishlist by personality: 0 economist, 1 warmonger, 2 turtle
 const PLANS = [
-  ['farm', 'mine', 'lab', 'market', 'barracks', 'harbor', 'lab', 'rail', 'hospital', 'oil', 'market', 'radar', 'shield', 'fortress', 'silo', 'airbase', 'spy'],
-  ['barracks', 'farm', 'mine', 'lab', 'bunker', 'artillery', 'harbor', 'rail', 'hospital', 'navalyard', 'airbase', 'silo', 'spy', 'radar', 'shield', 'oil'],
-  ['farm', 'bunker', 'mine', 'lab', 'watchtower', 'barracks', 'fortress', 'market', 'harbor', 'hospital', 'artillery', 'shield', 'radar', 'oil', 'silo', 'navalyard'],
+  ['farm', 'mine', 'market', 'barracks', 'harbor', 'rail', 'hospital', 'oil', 'market', 'radar', 'shield', 'fortress', 'silo', 'airbase', 'spy'],
+  ['barracks', 'farm', 'mine', 'bunker', 'artillery', 'harbor', 'rail', 'hospital', 'navalyard', 'airbase', 'silo', 'spy', 'radar', 'shield', 'oil'],
+  ['farm', 'bunker', 'mine', 'watchtower', 'barracks', 'fortress', 'market', 'harbor', 'hospital', 'artillery', 'shield', 'radar', 'oil', 'silo', 'navalyard'],
 ];
 const LIMIT = {
-  farm: (T) => Math.min(14, 1 + T / 300), mine: (T) => Math.min(14, 1 + T / 280), barracks: (T) => Math.min(10, T / 450), lab: (T) => Math.min(5, 1 + T / 700),
+  farm: (T) => Math.min(14, 1 + T / 300), mine: (T) => Math.min(14, 1 + T / 280), barracks: (T) => Math.min(10, T / 450),
   market: (T) => Math.min(8, T / 600), bunker: (T) => Math.min(10, T / 500), watchtower: (T) => T / 1400, harbor: (T) => (T > 120 ? 1 + T / 3000 : 0),
   fortress: (T) => T / 1500, artillery: (T) => T / 1200, rail: (T) => T / 2000, hospital: () => 2, navalyard: (T) => (T > 600 ? 1 : 0),
   radar: (T) => T / 3000, shield: (T) => T / 2000, airbase: (T) => (T > 900 ? 1 : 0), oil: (T) => T / 900, spy: (T) => (T > 1200 ? 1 : 0), silo: (T) => (T > 1000 ? 1 : 0),
@@ -62,11 +62,11 @@ export function aiThink(g, P) {
   if (D.smart >= 1 && P.troops < P.cap * 0.25 && P.gold > 8000 && P.ab.rallyCd <= tk) g.doAbility(P.id, 'rally');
 
   // missiles
-  if (D.smart >= 1 && P.tier >= 3 && P.act.silo && rng.next() < 0.25) {
+  if (D.smart >= 1 && P.act.silo && rng.next() < 0.25) {
     const foes = [...P.hostile.keys()].filter((o) => g.hostile(P.id, o) && g.players[o].alive);
     if (foes.length) {
       const foe = foes[rng.int(foes.length)];
-      const nukeOk = D.smart >= 3 && P.tier >= 4 && P.gold > MISSILES.nuke.cost * 1.3;
+      const nukeOk = D.smart >= 3 && tk > 9000 && P.gold > MISSILES.nuke.cost * 1.3;
       const type = nukeOk ? 'nuke' : P.gold > MISSILES.strike.cost * 1.5 ? (rng.next() < 0.3 ? 'emp' : 'strike') : null;
       const targets = g.structs.filter((s) => s.owner === foe);
       if (type && targets.length) { const s = targets[rng.int(targets.length)]; g.doMissile(P.id, type, s.i); }
@@ -74,14 +74,13 @@ export function aiThink(g, P) {
   }
 
   const fill = P.troops / P.cap;
-  const ongoing = g.attacks.filter((a) => a.p === P.id);
-  // expand into wilderness first
-  if (wild >= 0 && fill > 0.25 && ongoing.length < 2) {
+  const ongoing = g.attacks.filter((a) => a.p === P.id && a.t);
+  // expanding into wilderness is free, so keep one expansion running alongside any war
+  if (wild >= 0 && !g.attacks.some((a) => a.p === P.id && !a.t)) {
     const [x, y] = g.xy(wild);
-    const send = Math.floor(P.troops * (0.25 + 0.1 * P.pers));
+    const send = Math.floor(P.troops * (0.3 + 0.1 * P.pers));
     P.troops -= send;
     if (!g.launchAttack(P.id, 0, send, x, y, null)) P.troops += send;
-    return;
   }
   // war: hit the weakest neighbour we clearly beat
   const thresh = 0.55 / D.aggro;
@@ -150,7 +149,7 @@ function build(g, P, border) {
   const T = P.tiles, rng = g.rng;
   if (!P.hasCapital && P.gold >= g.costOf(P.id, 'capital')) { place(g, P, 'capital', border, false); return; }
   // pick among the first few unmet wishes so late-game buildings (silos, airbases) still get built
-  const unmet = PLANS[P.pers].filter((type) => STRUCTURES[type].tier <= P.tier && (P.counts[type] || 0) < LIMIT[type](T));
+  const unmet = PLANS[P.pers].filter((type) => (P.counts[type] || 0) < LIMIT[type](T));
   if (!unmet.length) return;
   const type = unmet[rng.int(Math.min(3, unmet.length))];
   if (P.gold < g.costOf(P.id, type)) return; // save up for it

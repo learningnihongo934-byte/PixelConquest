@@ -76,7 +76,6 @@ export class Sfx {
       case 'ally': [523, 659, 784].forEach((f, k) => this.tone(f, 0.25, { vol: 0.09, at: k * 0.09, type: 'triangle' })); break;
       case 'request': this.tone(784, 0.1, { vol: 0.08, type: 'triangle' }); this.tone(988, 0.15, { vol: 0.08, type: 'triangle', at: 0.1 }); break;
       case 'betray': [392, 370, 277].forEach((f, k) => this.tone(f, 0.3, { vol: 0.1, at: k * 0.15, type: 'sawtooth' })); break;
-      case 'tier': [392, 523, 659, 784, 1047].forEach((f, k) => this.tone(f, 0.18, { vol: 0.08, at: k * 0.06, type: 'square' })); break;
       case 'ability': this.tone(300, 0.3, { vol: 0.12, to: 900 }); this.noise(0.3, { vol: 0.1, freq: 3000 }); break;
       case 'spy': this.tone(196, 0.12, { vol: 0.08, type: 'triangle' }); this.tone(233, 0.12, { vol: 0.08, type: 'triangle', at: 0.14 }); break;
       case 'error': this.tone(160, 0.15, { vol: 0.1, type: 'square' }); break;

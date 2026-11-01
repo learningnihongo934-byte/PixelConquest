@@ -7,12 +7,13 @@ Pixel Conquest is a real-time pixel-art strategy game in the browser. You grow a
 ## Features
 
 - **Real world map.** The map is 640×238 tiles baked from Natural Earth (public domain) coastlines, mountain ranges, deserts, rivers and lakes. Terrain changes how fast you expand and how well land defends.
-- **20 structures in 4 tech tiers.** Science from Research Labs unlocks each tier:
-  - **Economy:** Farm, Mine, Market, Oil Derrick, Research Lab
+- **19 structures, all available from the start** (no research grind; each extra copy costs more):
+  - **Economy:** Farm, Mine, Market, Oil Derrick
   - **Defense:** Bunker, Fortress, Watchtower, Radar, Shield Dome
   - **Military:** Barracks, Artillery, Rail Hub, Field Hospital
   - **Reach:** Harbor (troop boats), Naval Yard (warships), Airbase (paradrops), Spy HQ (sabotage), Missile Silo (strike, EMP, nuke)
 - **PvP tools:**
+  - **Free expansion:** claiming wilderness never costs troops; the Send % only sets how fast you spread. Troops are lost only in fights.
   - **Directed attacks:** troops push toward the point you click, and clicking again steers them.
   - **Abilities:** Blitz, Entrench and Rally.
   - **Retreat:** recall your attacks.

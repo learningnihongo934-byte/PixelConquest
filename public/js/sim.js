@@ -1,7 +1,7 @@
 // Deterministic game simulation. Every client runs the same Game with the same seed and the
 // same ordered command list, so it must only use integer-safe math (+ - * / floor sqrt) and its
 // own RNG. Never read Date, Math.random or anything client-specific in here.
-import { TERRAIN, STRUCTURES, MISSILES, ABILITIES, TIERS, AI_DIFFICULTY, TICKS_PER_SEC } from './data.js';
+import { TERRAIN, STRUCTURES, MISSILES, ABILITIES, AI_DIFFICULTY, TICKS_PER_SEC } from './data.js';
 import { aiThink } from './ai.js';
 
 export class Rng {
@@ -55,8 +55,8 @@ export class Game {
     return {
       id, name: r.name, color: r.color, team: r.team || 0, ai: !!r.ai, diff: r.diff || 'normal', uid: r.uid || null,
       pers: id % 3, alive: true, spawned: false, spawnI: -1,
-      troops: 2500, gold: 2000, sci: 0, tiles: 0, sumX: 0, sumY: 0,
-      cap: 1000, growth: 20, goldRate: 2, sciRate: 0.3, tier: 1,
+      troops: 2500, gold: 2000, tiles: 0, sumX: 0, sumY: 0,
+      cap: 1000, growth: 20, goldRate: 2,
       border: new Set(), allies: new Set(), allyReq: new Map(), breaking: new Map(), hostile: new Map(),
       revealedTo: new Map(), traitorUntil: 0, nuker: false, capital: 0,
       counts: {}, act: {}, defList: [], artList: [], railList: [], hospitals: 0, hasCapital: false,
@@ -210,7 +210,11 @@ export class Game {
     if (seeds) seeds.forEach(add);
     else for (const b of P.border) this.forN(b, add);
     if (!a.cand.length) return false;
-    a.troops += troops; a.fx = fx; a.fy = fy;
+    a.fx = fx; a.fy = fy;
+    // expanding into wilderness is free: the troops stay home and only set the pace.
+    // A new click re-picks the crew size; boats and paradrops never shrink it.
+    if (!t) { P.troops += troops; a.troops = seeds && !fresh ? Math.max(a.troops, troops) : troops; a.prog = a.prog || 0; }
+    else a.troops += troops;
     if (P.railList.length) { const [cx, cy] = this.xy(a.cand[0]); if (this.near(P.railList, cx, cy)) a.rail = true; }
     if (fresh) this.attacks.push(a);
     if (t) { this.setHostile(p, t); this.ev('attack', { p, t, troops }); }
@@ -222,8 +226,7 @@ export class Game {
     const ter = TERRAIN[this.terrain[i]];
     const [x, y] = this.xy(i);
     let c;
-    if (!a.t) c = 10 * ter.cost;
-    else {
+    {
       const D = this.players[a.t];
       c = (6 + this.dens(a.t) * 1.1) * ter.def;
       const f = this.near(D.defList, x, y);
@@ -240,10 +243,21 @@ export class Game {
   processAttack(a) {
     const P = this.players[a.p];
     if (a.t && this.allied(a.p, a.t)) return true;
+    const wild = !a.t;
     let n = Math.min(30, 2 + Math.floor(a.troops / 700));
-    if (P.ab.blitzUntil > this.tick) n *= 2;
-    if (a.rail) n = Math.floor(n * 1.5);
+    if (wild) {
+      // pace in terrain-cost points per tick; the crew can't be bigger than the army at home
+      let sp = Math.min(8, 0.8 + Math.min(a.troops, P.troops) / 2000);
+      if (P.ab.blitzUntil > this.tick) sp *= 2;
+      if (a.rail) sp *= 1.5;
+      a.prog = Math.min(a.prog + sp, 40);
+      n = 64;
+    } else {
+      if (P.ab.blitzUntil > this.tick) n *= 2;
+      if (a.rail) n = Math.floor(n * 1.5);
+    }
     while (n-- > 0 && a.cand.length) {
+      if (wild && a.prog < 1) break;
       let bk = -1, bs = 1e18;
       const tries = Math.min(4, a.cand.length);
       for (let s = 0; s < tries; s++) {
@@ -260,6 +274,13 @@ export class Game {
       a.cand.pop();
       a.inCand.delete(i);
       if (this.owner[i] !== a.t || !this.claimable(i)) continue;
+      if (wild) {
+        a.prog -= TERRAIN[this.terrain[i]].cost;
+        P.stats.taken++;
+        this.setOwner(i, a.p);
+        this.forN(i, (m) => { if (this.owner[m] === 0 && this.claimable(m) && !a.inCand.has(m)) { a.inCand.add(m); a.cand.push(m); } });
+        continue;
+      }
       const cost = this.tileCost(a, i);
       if (cost > a.troops) { a.cand.length = 0; break; }
       a.troops -= cost;
@@ -280,7 +301,7 @@ export class Game {
     const P = this.players[p];
     this.attacks = this.attacks.filter((a) => {
       if (a.p !== p) return true;
-      P.troops += a.troops * 0.75;
+      if (a.t) P.troops += a.troops * 0.75;
       return false;
     });
   }
@@ -399,7 +420,6 @@ export class Game {
   // ---------- missiles ----------
   doMissile(p, m, i) {
     const P = this.players[p], M = MISSILES[m];
-    if (P.tier < M.tier) { this.ev('fail', { p, msg: `${M.name} needs tier ${M.tier}.` }); return; }
     if (P.gold < M.cost) { this.ev('fail', { p, msg: `${M.name} costs ${M.cost.toLocaleString()} gold.` }); return; }
     const [x, y] = this.xy(i);
     const silo = this.activeOf(p, 'silo').find((s) => s.cdUntil <= this.tick && (s.x - x) ** 2 + (s.y - y) ** 2 <= M.range * M.range);
@@ -523,7 +543,6 @@ export class Game {
   canBuild(p, type, i) {
     const P = this.players[p], S = STRUCTURES[type];
     if (this.owner[i] !== p) return 'Build on your own land.';
-    if (P.tier < S.tier) return `${S.name} needs tier ${S.tier}. Build Research Labs.`;
     if (type === 'capital' && P.hasCapital) return 'You already have a capital.';
     if (S.coastal && !this.isCoastal(i)) return `${S.name} must be on the coast.`;
     if (S.terrain && !S.terrain.includes(this.terrain[i])) return `${S.name} must be on desert, tundra or snow.`;
@@ -620,7 +639,6 @@ export class Game {
       P.goldRate = gold * m;
       P.cap = (1000 + P.tiles * 20 + (a.barracks || 0) * 6000 + (P.hasCapital ? 3000 : 0)) * (P.ai ? Math.sqrt(m) : 1);
       P.growth = (20 + P.tiles * 0.25 + (a.farm || 0) * 25) * (P.hasCapital ? 1 : 0.7) * (1 + 0.1 * Math.min(3, a.rail || 0)) * m;
-      P.sciRate = (0.3 + (a.lab || 0) * 1.5) * m;
     }
   }
 
@@ -659,8 +677,6 @@ export class Game {
     for (const P of this.players) {
       if (!P || !P.alive) continue;
       P.gold += P.goldRate / SEC;
-      P.sci += P.sciRate / SEC;
-      while (P.tier < 4 && P.sci >= TIERS[P.tier + 1]) { P.tier++; this.ev('tier', { p: P.id, tier: P.tier }); }
       if (P.troops < P.cap) P.troops = Math.min(P.cap, P.troops + (P.growth * (1 - P.troops / P.cap)) / SEC + 0.5);
       else P.troops -= (P.troops - P.cap) * 0.01 / SEC;
       for (const [t, until] of P.breaking) {
@@ -676,7 +692,7 @@ export class Game {
 
     this.attacks = this.attacks.filter((a) => {
       if (!this.processAttack(a)) return true;
-      this.players[a.p].troops += a.troops;
+      if (a.t) this.players[a.p].troops += a.troops;
       return false;
     });
 

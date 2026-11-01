@@ -20,38 +20,34 @@ export const TERRAIN = [
   { name: 'River', cost: 1.6, def: 1.25, rgb: [82, 140, 170] },
 ];
 
-// science needed to reach tier 2, 3, 4
-export const TIERS = [0, 0, 60, 240, 600];
-
 // icon = cell in public/art/icons.png (16 per row, 16x16 px)
 export const STRUCTURES = {
-  capital:    { icon: 0,  name: 'Capital',      tier: 1, cost: 8000, key: '',  desc: '+10 gold/s, +3k troop cap. Losing it slows growth by 30%.' },
-  farm:       { icon: 1,  name: 'Farm',         tier: 1, cost: 1200, key: '1', desc: '+25 troops/s growth.' },
-  mine:       { icon: 2,  name: 'Mine',         tier: 1, cost: 1500, key: '2', desc: '+12 gold/s, doubled on hills or mountains.' },
-  barracks:   { icon: 9,  name: 'Barracks',     tier: 1, cost: 1800, key: '3', desc: '+6,000 troop cap.' },
-  lab:        { icon: 5,  name: 'Research Lab', tier: 1, cost: 2000, key: '4', desc: '+1.5 science/s. Science unlocks tiers 2-4.' },
-  market:     { icon: 3,  name: 'Market',       tier: 1, cost: 2500, key: '5', desc: '+15 gold/s, +25% more per ally.' },
-  bunker:     { icon: 10, name: 'Bunker',       tier: 1, cost: 1500, key: '6', desc: 'Land within 5 tiles is 1.6x harder to take.' },
-  watchtower: { icon: 12, name: 'Watchtower',   tier: 1, cost: 1000, key: '7', desc: 'Reveals enemy structures within 18 tiles. 1.25x defense nearby.' },
-  harbor:     { icon: 6,  name: 'Harbor',       tier: 1, cost: 3000, key: '8', coastal: true, desc: 'Coast only. Sends troop boats across water. +8 gold/s.' },
-  fortress:   { icon: 11, name: 'Fortress',     tier: 2, cost: 6000, key: 'q', desc: 'Land within 8 tiles is 2.5x harder to take.' },
-  artillery:  { icon: 15, name: 'Artillery',    tier: 2, cost: 5000, key: 'w', desc: 'Shells hostile land within 10 tiles every 3s. Attacks nearby cost 25% less.' },
-  rail:       { icon: 7,  name: 'Rail Hub',     tier: 2, cost: 4000, key: 'e', desc: 'Attacks launched within 14 tiles move 50% faster. +10% troop growth.' },
-  hospital:   { icon: 8,  name: 'Field Hospital', tier: 2, cost: 3500, key: 'r', desc: 'Your attacks lose 15% fewer troops (stacks to 3).' },
-  navalyard:  { icon: 16, name: 'Naval Yard',   tier: 2, cost: 6000, key: 't', coastal: true, desc: 'Coast only. Launches 2 warships that hunt enemy boats.' },
-  radar:      { icon: 14, name: 'Radar',        tier: 3, cost: 5000, key: 'a', desc: 'Reveals structures within 40 tiles and enemy troop counts.' },
-  shield:     { icon: 13, name: 'Shield Dome',  tier: 3, cost: 9000, key: 's', desc: 'Stops missiles within 14 tiles. 3 charges, 1 back every 20s.' },
-  airbase:    { icon: 17, name: 'Airbase',      tier: 3, cost: 8000, key: 'd', desc: 'Paradrop troops up to 70 tiles away (right-click land).' },
-  oil:        { icon: 4,  name: 'Oil Derrick',  tier: 3, cost: 6000, key: 'f', terrain: [5, 8, 9], desc: 'Desert, tundra or snow only. +45 gold/s.' },
-  spy:        { icon: 19, name: 'Spy HQ',       tier: 3, cost: 7000, key: 'g', desc: 'Sabotage: disable an enemy structure for 40s and steal 10% gold.' },
-  silo:       { icon: 18, name: 'Missile Silo', tier: 3, cost: 12000, key: 'h', desc: 'Launch strikes and EMPs (tier 3) and nukes (tier 4).' },
+  capital:    { icon: 0,  name: 'Capital',      cost: 8000, key: '',  desc: '+10 gold/s, +3k troop cap. Losing it slows growth by 30%.' },
+  farm:       { icon: 1,  name: 'Farm',         cost: 1200, key: '1', desc: '+25 troops/s growth.' },
+  mine:       { icon: 2,  name: 'Mine',         cost: 1500, key: '2', desc: '+12 gold/s, doubled on hills or mountains.' },
+  barracks:   { icon: 9,  name: 'Barracks',     cost: 1800, key: '3', desc: '+6,000 troop cap.' },
+  market:     { icon: 3,  name: 'Market',       cost: 2500, key: '4', desc: '+15 gold/s, +25% more per ally.' },
+  bunker:     { icon: 10, name: 'Bunker',       cost: 1500, key: '5', desc: 'Land within 5 tiles is 1.6x harder to take.' },
+  watchtower: { icon: 12, name: 'Watchtower',   cost: 1000, key: '6', desc: 'Reveals enemy structures within 18 tiles. 1.25x defense nearby.' },
+  harbor:     { icon: 6,  name: 'Harbor',       cost: 3000, key: '7', coastal: true, desc: 'Coast only. Sends troop boats across water. +8 gold/s.' },
+  fortress:   { icon: 11, name: 'Fortress',     cost: 6000, key: '8', desc: 'Land within 8 tiles is 2.5x harder to take.' },
+  artillery:  { icon: 15, name: 'Artillery',    cost: 5000, key: 'q', desc: 'Shells hostile land within 10 tiles every 3s. Attacks nearby cost 25% less.' },
+  rail:       { icon: 7,  name: 'Rail Hub',     cost: 4000, key: 'w', desc: 'Attacks launched within 14 tiles move 50% faster. +10% troop growth.' },
+  hospital:   { icon: 8,  name: 'Field Hospital', cost: 3500, key: 'e', desc: 'Your attacks lose 15% fewer troops (stacks to 3).' },
+  navalyard:  { icon: 16, name: 'Naval Yard',   cost: 6000, key: 'r', coastal: true, desc: 'Coast only. Launches 2 warships that hunt enemy boats.' },
+  radar:      { icon: 14, name: 'Radar',        cost: 5000, key: 't', desc: 'Reveals structures within 40 tiles and enemy troop counts.' },
+  shield:     { icon: 13, name: 'Shield Dome',  cost: 9000, key: 'a', desc: 'Stops missiles within 14 tiles. 3 charges, 1 back every 20s.' },
+  airbase:    { icon: 17, name: 'Airbase',      cost: 8000, key: 's', desc: 'Paradrop troops up to 70 tiles away (right-click land).' },
+  oil:        { icon: 4,  name: 'Oil Derrick',  cost: 6000, key: 'd', terrain: [5, 8, 9], desc: 'Desert, tundra or snow only. +45 gold/s.' },
+  spy:        { icon: 19, name: 'Spy HQ',       cost: 7000, key: 'f', desc: 'Sabotage: disable an enemy structure for 40s and steal 10% gold.' },
+  silo:       { icon: 18, name: 'Missile Silo', cost: 12000, key: 'g', desc: 'Launch strikes, EMPs and nukes.' },
 };
 export const STRUCTURE_ORDER = Object.keys(STRUCTURES).filter((k) => k !== 'capital');
 
 export const MISSILES = {
-  strike: { name: 'Strike Missile', icon: 22, cost: 6000, tier: 3, range: 140, radius: 6 },
-  emp:    { name: 'EMP',            icon: 27, cost: 5000, tier: 3, range: 140, radius: 10 },
-  nuke:   { name: 'Nuke',           icon: 23, cost: 30000, tier: 4, range: 9999, radius: 14 },
+  strike: { name: 'Strike Missile', icon: 22, cost: 6000, range: 140, radius: 6 },
+  emp:    { name: 'EMP',            icon: 27, cost: 5000, range: 140, radius: 10 },
+  nuke:   { name: 'Nuke',           icon: 23, cost: 30000, range: 9999, radius: 14 },
 };
 
 export const ABILITIES = {
@@ -62,7 +58,7 @@ export const ABILITIES = {
 
 export const EMOTES = ['Hello!', 'Good game', 'Ally?', 'Leave me alone', 'Attack them!', 'Help!', 'Oops', 'Nice move', 'You are next', 'Peace?'];
 
-export const ICON = { troops: 25, gold: 26, science: 5, explosion: 24, transport: 20, warship: 21, missile: 22, nuke: 23, plane: 17, peace: 30, war: 31 };
+export const ICON = { troops: 25, gold: 26, explosion: 24, transport: 20, warship: 21, missile: 22, nuke: 23, plane: 17, peace: 30, war: 31 };
 
 export const COLORS = [
   '#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990',

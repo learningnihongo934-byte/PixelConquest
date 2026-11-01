@@ -1,5 +1,5 @@
 // App shell: menus, lobby flow, input, HUD and the fixed-step game loop.
-import { STRUCTURES, STRUCTURE_ORDER, MISSILES, ABILITIES, EMOTES, COLORS, TERRAIN, TIERS, TURN_TICKS, AI_DIFFICULTY, empireName, ICON } from './data.js';
+import { STRUCTURES, STRUCTURE_ORDER, MISSILES, ABILITIES, EMOTES, COLORS, TERRAIN, TURN_TICKS, AI_DIFFICULTY, empireName, ICON } from './data.js';
 import { Game } from './sim.js';
 import { Renderer, fmt } from './render.js';
 import { Sfx } from './sfx.js';
@@ -276,7 +276,7 @@ function buildHud() {
     b.appendChild(ico(S.icon, 32));
     b.insertAdjacentHTML('beforeend', `<small></small><kbd>${S.key.toUpperCase()}</kbd>`);
     b.onclick = () => setMode(mode && mode.k === 'build' && mode.s === k ? null : { k: 'build', s: k });
-    tipOn(b, () => `<b>${S.name}</b> (tier ${S.tier})<br>${S.desc}<br>Cost: ${fmt(game.costOf(me, k))} gold`);
+    tipOn(b, () => `<b>${S.name}</b><br>${S.desc}<br>Cost: ${fmt(game.costOf(me, k))} gold`);
     bb.appendChild(b);
   }
   const mb = $('missilebar');
@@ -287,7 +287,7 @@ function buildHud() {
     b.appendChild(ico(M.icon, 32));
     b.insertAdjacentHTML('beforeend', `<small>${fmt(M.cost)}</small>`);
     b.onclick = () => setMode(mode && mode.k === 'msl' && mode.m === k ? null : { k: 'msl', m: k });
-    tipOn(b, () => `<b>${M.name}</b> (tier ${M.tier})<br>${k === 'strike' ? 'Kills troops and wrecks structures in a 6-tile blast.' : k === 'emp' ? 'Shuts down enemy structures and warships within 10 tiles for 30s.' : 'Wipes out a 10-tile area and leaves fallout for 45s. Everyone will hate you.'}<br>Needs a Missile Silo${k === 'nuke' ? '' : ' within 140 tiles'}. Cost ${fmt(M.cost)} gold.`);
+    tipOn(b, () => `<b>${M.name}</b><br>${k === 'strike' ? 'Kills troops and wrecks structures in a 6-tile blast.' : k === 'emp' ? 'Shuts down enemy structures and warships within 10 tiles for 30s.' : 'Wipes out a 10-tile area and leaves fallout for 45s. Everyone will hate you.'}<br>Needs a Missile Silo${k === 'nuke' ? '' : ' within 140 tiles'}. Cost ${fmt(M.cost)} gold.`);
     mb.appendChild(b);
   }
   const ab = $('abilities');
@@ -322,19 +322,18 @@ function updateHud() {
   $('sCap').textContent = '/' + fmt(P.cap);
   $('sGold').textContent = fmt(P.gold);
   $('sGoldR').textContent = '+' + fmt(P.goldRate) + '/s';
-  $('sTier').textContent = 'T' + P.tier;
-  const lo = TIERS[P.tier] || 0, hi = TIERS[P.tier + 1];
-  $('sSci').style.width = hi ? Math.min(100, ((P.sci - lo) / (hi - lo)) * 100) + '%' : '100%';
+  const share = P.tiles / Math.max(1, game.landTotal || 1);
+  $('sLand').textContent = (share * 100).toFixed(1) + '%';
+  $('sWin').style.width = Math.min(100, (share / (game.settings.winPct || 0.6)) * 100) + '%';
   for (const b of $('buildbar').children) {
     const k = b.dataset.s, cost = game.costOf(me, k);
     b.querySelector('small').textContent = fmt(cost);
-    b.classList.toggle('locked', P.tier < STRUCTURES[k].tier);
     b.classList.toggle('poor', P.gold < cost);
     b.classList.toggle('sel', !!(mode && mode.k === 'build' && mode.s === k));
   }
   for (const b of $('missilebar').children) {
     const M = MISSILES[b.dataset.m];
-    b.classList.toggle('locked', P.tier < M.tier || !(P.counts.silo > 0));
+    b.classList.toggle('locked', !(P.counts.silo > 0));
     b.classList.toggle('poor', P.gold < M.cost);
     b.classList.toggle('sel', !!(mode && mode.k === 'msl' && mode.m === b.dataset.m));
   }
@@ -469,9 +468,9 @@ function openCtx(i, sx, sy) {
     add(o ? 'Attack here' : 'Expand here', 25, () => send({ k: 'atk', x, y, r: ratio() }));
     const coastal = game.isCoastal(i);
     add('Send troop boat', 20, () => send({ k: 'boat', x, y, r: ratio() }), coastal && P.counts.harbor > 0, coastal ? 'Needs a Harbor' : 'Must target a coast');
-    add('Paradrop', 17, () => send({ k: 'drop', x, y, r: ratio() }), P.counts.airbase > 0, 'Needs an Airbase (tier 3)');
-    for (const [k, M] of Object.entries(MISSILES)) add(`${M.name} (${fmt(M.cost)})`, M.icon, () => send({ k: 'msl', m: k, x, y }), P.counts.silo > 0 && P.tier >= M.tier, `Needs a Missile Silo and tier ${M.tier}`);
-    if (s && o) add('Sabotage (2.5k)', 19, () => send({ k: 'spy', x, y }), P.counts.spy > 0, 'Needs a Spy HQ (tier 3)');
+    add('Paradrop', 17, () => send({ k: 'drop', x, y, r: ratio() }), P.counts.airbase > 0, 'Needs an Airbase');
+    for (const [k, M] of Object.entries(MISSILES)) add(`${M.name} (${fmt(M.cost)})`, M.icon, () => send({ k: 'msl', m: k, x, y }), P.counts.silo > 0, 'Needs a Missile Silo');
+    if (s && o) add('Sabotage (2.5k)', 19, () => send({ k: 'spy', x, y }), P.counts.spy > 0, 'Needs a Spy HQ');
   }
   if (alive && o === me && s && s.type !== 'capital') add(`Demolish (+${fmt(STRUCTURES[s.type].cost * 0.25)})`, 24, () => send({ k: 'demolish', x, y }));
   if (alive && O && o !== me && O.alive) {
@@ -537,7 +536,6 @@ function handleEvents() {
       case 'allied': feed(`${nm(e.p)} and ${nm(e.t)} are now allies.`, mine || atMe ? 'good' : ''); if (mine || atMe) sfx.play('ally'); break;
       case 'breaking': if (atMe) { feed(`${nm(e.p)} is breaking your alliance in 10 seconds!`, 'bad'); sfx.play('betray'); } break;
       case 'betrayed': feed(`${nm(e.p)} betrayed ${nm(e.t)}!`, atMe ? 'bad' : ''); if (atMe || mine) sfx.play('betray'); break;
-      case 'tier': if (mine) { feed(`Tier ${e.tier} unlocked! New structures available.`, 'good'); sfx.play('tier'); } break;
       case 'built': if (mine) sfx.play('build'); break;
       case 'fail': if (mine) { toast(e.msg); sfx.play('error'); } break;
       case 'captured': if (mine) { feed(`Captured ${nm(e.t)}'s ${STRUCTURES[e.s].name}.`, 'good'); sfx.play('capture'); } else if (atMe) { feed(`${nm(e.p)} captured your ${STRUCTURES[e.s].name}.`, 'bad'); sfx.play('lost'); } break;
