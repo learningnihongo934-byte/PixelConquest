@@ -61,6 +61,7 @@ export class Game {
       revealedTo: new Map(), traitorUntil: 0, nuker: false, capital: 0,
       counts: {}, act: {}, defList: [], artList: [], railList: [], hospitals: 0, hasCapital: false,
       ab: { blitzUntil: 0, blitzCd: 0, entrenchUntil: 0, entrenchCd: 0, rallyCd: 0 },
+      god: false, power: false, free: false, frozenUntil: 0,
       stats: { taken: 0, lost: 0, peakTiles: 0, built: 0, missiles: 0 },
       aiMem: { next: 0, borderArr: [], borderAt: -999 },
     };
@@ -101,6 +102,7 @@ export class Game {
     this.players[b].hostile.set(a, this.tick + 60 * SEC);
   }
   costOf(p, type) {
+    if (this.players[p].free) return 0;
     const n = this.players[p].counts[type] || 0;
     return Math.floor(STRUCTURES[type].cost * (1 + 0.3 * n));
   }
@@ -136,6 +138,7 @@ export class Game {
     if (!P) return;
     if (c.k === 'bot') { P.ai = true; P.diff = 'normal'; this.ev('bot', { p: c.p }); return; }
     if (!P.alive || this.phase === 'over') return;
+    if (P.frozenUntil > this.tick && c.k !== 'adm' && c.k !== 'emote') { this.ev('fail', { p: c.p, msg: 'You are frozen by an admin.' }); return; }
     const tile = (Number.isInteger(c.x) && Number.isInteger(c.y) && this.inMap(c.x, c.y)) ? this.idx(c.x, c.y) : -1;
     const ratio = Math.min(1, Math.max(0.01, +c.r || 0.3));
     switch (c.k) {
@@ -164,12 +167,42 @@ export class Game {
     const P = this.players[c.p];
     if (!P.admin || this.phase !== 'play') return;
     const T = this.players[c.t];
-    if (c.a === 'gold') P.gold += 50000;
-    else if (c.a === 'troops') { P.cap = Math.max(P.cap, P.troops + 50000); P.troops += 50000; }
-    else if (c.a === 'shield') P.ab.entrenchUntil = this.tick + 120 * SEC;
-    else if (c.a === 'kill' && T && T.alive && T !== P) this.eliminate(T.id, true);
-    else return;
-    this.ev('admin', { p: c.p, a: c.a, t: c.t | 0 });
+    const other = T && T.alive && T !== P;
+    const n = [50000, 500000, 5000000].includes(c.n) ? c.n : 50000;
+    switch (c.a) {
+      // you
+      case 'gold': P.gold += n; break;
+      case 'troops': P.cap = Math.max(P.cap, P.troops + n); P.troops += n; break;
+      case 'shield': P.ab.entrenchUntil = this.tick + 120 * SEC; break;
+      case 'god': P.god = !P.god; break; // your land can't be taken or damaged
+      case 'power': P.power = !P.power; break; // attacks 10x cheaper and 3x faster
+      case 'free': P.free = !P.free; break; // free structures, missiles from anywhere, no cooldowns
+      case 'win':
+        this.phase = 'over';
+        this.winner = this.sideOf(P.id);
+        this.ev('over', { winner: this.winner });
+        break;
+      // another player
+      case 'kill': if (!other) return; this.eliminate(T.id, true); break;
+      case 'annex': // take all their land and structures
+        if (!other) return;
+        for (let i = 0; i < this.N; i++) if (this.owner[i] === T.id) this.setOwner(i, P.id);
+        this.eliminate(T.id, false);
+        this.recount();
+        break;
+      case 'drain': if (!other) return; T.troops = 0; T.gold = 0; break;
+      case 'freeze':
+        if (!other) return;
+        T.frozenUntil = this.tick + 60 * SEC;
+        this.attacks = this.attacks.filter((a) => a.p !== T.id);
+        this.boats = this.boats.filter((b) => b.p !== T.id);
+        break;
+      case 'gift': if (!other) return; T.gold += n; break;
+      // everyone
+      case 'killai': for (const Q of this.players) if (Q && Q.ai && Q.alive && Q !== P) this.eliminate(Q.id, true); break;
+      default: return;
+    }
+    this.ev('admin', { p: c.p, a: c.a, t: c.t | 0, n, on: c.a === 'god' ? P.god : c.a === 'power' ? P.power : c.a === 'free' ? P.free : undefined });
   }
 
   doSpawn(p, i) {
@@ -293,6 +326,7 @@ export class Game {
     let c;
     {
       const D = this.players[a.t];
+      if (D.god) return 1e15;
       c = (6 + this.dens(a.t) * 1.1) * ter.def;
       const f = this.near(D.defList, x, y);
       if (f) c *= f.mult;
@@ -302,6 +336,7 @@ export class Game {
     }
     if (P.ab.blitzUntil > this.tick) c *= 0.85;
     c *= 1 - 0.15 * Math.min(3, P.hospitals);
+    if (P.power) c *= 0.1;
     return c;
   }
 
@@ -315,11 +350,13 @@ export class Game {
       let sp = Math.min(8, 0.8 + Math.min(a.troops, P.troops) / 2000);
       if (P.ab.blitzUntil > this.tick) sp *= 2;
       if (a.rail) sp *= 1.5;
+      if (P.power) sp = 40;
       a.prog = Math.min(a.prog + sp, 40);
       n = 64;
     } else {
       if (P.ab.blitzUntil > this.tick) n *= 2;
       if (a.rail) n = Math.floor(n * 1.5);
+      if (P.power) n *= 3;
     }
     while (n-- > 0 && a.cand.length) {
       if (wild && a.prog < 1) break;
@@ -472,12 +509,14 @@ export class Game {
   // ---------- missiles ----------
   doMissile(p, m, i) {
     const P = this.players[p], M = MISSILES[m];
-    if (P.gold < M.cost) { this.ev('fail', { p, msg: `${M.name} costs ${M.cost.toLocaleString()} gold.` }); return; }
+    if (!P.free && P.gold < M.cost) { this.ev('fail', { p, msg: `${M.name} costs ${M.cost.toLocaleString()} gold.` }); return; }
     const [x, y] = this.xy(i);
-    const silo = this.activeOf(p, 'silo').find((s) => s.cdUntil <= this.tick && (s.x - x) ** 2 + (s.y - y) ** 2 <= M.range * M.range);
+    let silo = this.activeOf(p, 'silo').find((s) => s.cdUntil <= this.tick && (s.x - x) ** 2 + (s.y - y) ** 2 <= M.range * M.range);
+    if (!silo && P.free && P.tiles) silo = { x: Math.floor(P.sumX / P.tiles), y: Math.floor(P.sumY / P.tiles), fake: true };
     if (!silo) { this.ev('fail', { p, msg: 'No ready Missile Silo in range.' }); return; }
-    P.gold -= M.cost; P.stats.missiles++;
-    silo.cdUntil = this.tick + 15 * SEC;
+    if (!P.free) P.gold -= M.cost;
+    P.stats.missiles++;
+    if (!silo.fake && !P.free) silo.cdUntil = this.tick + 15 * SEC;
     const dist = Math.sqrt((silo.x - x) ** 2 + (silo.y - y) ** 2);
     this.missiles.push({ id: this.nextId++, p, m, sx: silo.x, sy: silo.y, tx: x, ty: y, t: 0, total: Math.max(15, Math.ceil(dist / 3)) });
     const t = this.owner[i];
@@ -505,6 +544,7 @@ export class Game {
       const d2 = dx * dx + dy * dy, x = ms.tx + dx, y = ms.ty + dy;
       if (d2 > r * r || !this.inMap(x, y)) continue;
       const i = this.idx(x, y), o = this.owner[i];
+      if (o && this.players[o].god) continue;
       if (ms.m === 'nuke') {
         if (o) loss.set(o, (loss.get(o) || 0) + 3);
         if (d2 <= 100 && this.isLand(i)) {
@@ -525,7 +565,7 @@ export class Game {
         if (s && s.owner !== p && !this.allied(s.owner, p)) s.disabledUntil = this.tick + 30 * SEC;
       }
     }
-    if (ms.m === 'emp') for (const w of this.warships) if ((w.x - ms.tx) ** 2 + (w.y - ms.ty) ** 2 <= r * r && !this.allied(w.owner, p)) w.stunUntil = this.tick + 30 * SEC;
+    if (ms.m === 'emp') for (const w of this.warships) if ((w.x - ms.tx) ** 2 + (w.y - ms.ty) ** 2 <= r * r && !this.allied(w.owner, p) && !this.players[w.owner].god) w.stunUntil = this.tick + 30 * SEC;
     if (ms.m === 'nuke') this.fallouts.push({ until: this.tick + 45 * SEC, x: ms.tx, y: ms.ty });
     for (const [o, mult] of loss) {
       const Q = this.players[o];
@@ -540,6 +580,7 @@ export class Game {
     const P = this.players[p];
     const s = this.structAt.get(i);
     if (!s || s.owner === p || this.allied(s.owner, p)) { this.ev('fail', { p, msg: 'Pick an enemy structure to sabotage.' }); return; }
+    if (this.players[s.owner].god) { this.ev('fail', { p, msg: 'That nation is protected.' }); return; }
     const hq = this.activeOf(p, 'spy').find((h) => h.cdUntil <= this.tick);
     if (!hq) { this.ev('fail', { p, msg: 'No ready Spy HQ.' }); return; }
     if (P.gold < 2500) { this.ev('fail', { p, msg: 'Sabotage costs 2,500 gold.' }); return; }
@@ -555,13 +596,13 @@ export class Game {
 
   doAbility(p, a) {
     const P = this.players[p], A = ABILITIES[a], ab = P.ab;
-    if ((ab[a + 'Cd'] || 0) > this.tick) return;
+    if (!P.free && (ab[a + 'Cd'] || 0) > this.tick) return;
     if (a === 'rally') {
-      if (P.gold < A.gold) { this.ev('fail', { p, msg: 'Rally costs 3,000 gold.' }); return; }
-      P.gold -= A.gold;
+      if (!P.free && P.gold < A.gold) { this.ev('fail', { p, msg: 'Rally costs 3,000 gold.' }); return; }
+      if (!P.free) P.gold -= A.gold;
       P.troops = Math.min(P.cap * 1.3, P.troops * 1.2 + 200);
     } else ab[a + 'Until'] = this.tick + A.dur;
-    ab[a + 'Cd'] = this.tick + A.cd;
+    ab[a + 'Cd'] = P.free ? 0 : this.tick + A.cd;
     this.ev('ability', { p, a });
   }
 
@@ -739,7 +780,7 @@ export class Game {
         this.ev('betrayed', { p: P.id, t });
       }
       for (const [t, until] of P.allyReq) if (until <= tk) P.allyReq.delete(t);
-      if (P.ai && (tk + P.id) % AI_DIFFICULTY[P.diff].think === 0) aiThink(this, P);
+      if (P.ai && P.frozenUntil <= tk && (tk + P.id) % AI_DIFFICULTY[P.diff].think === 0) aiThink(this, P);
     }
 
     this.attacks = this.attacks.filter((a) => {
@@ -779,7 +820,7 @@ export class Game {
         const x = s.x + this.rng.int(21) - 10, y = s.y + this.rng.int(21) - 10;
         if (!this.inMap(x, y) || (x - s.x) ** 2 + (y - s.y) ** 2 > 100) continue;
         const o = this.owner[this.idx(x, y)];
-        if (!o || !this.hostile(s.owner, o)) continue;
+        if (!o || !this.hostile(s.owner, o) || this.players[o].god) continue;
         const D = this.players[o];
         const l = Math.min(D.troops, 30 + this.dens(o) * 4);
         D.troops -= l; D.stats.lost += l;

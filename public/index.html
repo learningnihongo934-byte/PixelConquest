@@ -87,6 +87,7 @@
     <div class="abil" id="abilities"></div>
     <div class="menu-btns">
       <button id="btnPause" class="ghost hidden" title="Pause (solo)">II</button>
+      <button id="btnAdm" class="ghost hidden" title="Admin powers (only admins see this)">Admin</button>
       <button id="btnRetreat" class="ghost" title="Recall all your attacks (V)">Retreat</button>
       <button id="btnMenu" class="ghost">Menu</button>
     </div>
@@ -105,6 +106,12 @@
   <div id="banner" class="hidden"></div>
   <div id="ctx" class="hidden"></div>
   <div id="tip" class="hidden"></div>
+  <div id="admPow" class="modal hidden">
+    <div class="panel admpow">
+      <div class="adm-head"><h2>Admin powers</h2><button id="apClose" class="ghost">Close</button></div>
+      <div id="apBody"></div>
+    </div>
+  </div>
   <div id="gameMenu" class="modal hidden">
     <div class="panel">
       <h2>Menu</h2>

@@ -269,6 +269,8 @@ function beginGame(roster, settings, slot, isSolo) {
   $('feed').innerHTML = '';
   $('end').classList.add('hidden');
   $('btnPause').classList.toggle('hidden', !isSolo);
+  $('btnAdm').classList.toggle('hidden', !(game.players[me] && game.players[me].admin));
+  $('admPow').classList.add('hidden');
   $('chat').classList.toggle('hidden', isSolo);
   closeChat(); setChatCh('all');
   buildHud();
@@ -491,7 +493,12 @@ function openCtx(i, sx, sy) {
     } else add(P.allyReq.has(o) ? 'Accept alliance' : O.allyReq.has(me) ? 'Alliance requested' : 'Request alliance', 30, () => send({ k: 'ally', t: o }), !O.allyReq.has(me));
   }
   if (alive && !ter.water) add('Ping for allies', 29, () => send({ k: 'ping', x, y }));
-  if (alive && P.admin && O && o !== me && O.alive) add('Admin: wipe out', 24, () => { if (confirm(`Wipe out ${O.name}?`)) send({ k: 'adm', a: 'kill', t: o }); });
+  if (alive && P.admin && game.phase === 'play' && O && o !== me && O.alive) {
+    add('Admin: take over their land', 24, () => send({ k: 'adm', a: 'annex', t: o }));
+    add('Admin: freeze 60s', 24, () => send({ k: 'adm', a: 'freeze', t: o }));
+    add('Admin: drain troops & gold', 24, () => send({ k: 'adm', a: 'drain', t: o }));
+    add('Admin: wipe out', 24, () => { if (confirm(`Wipe out ${O.name}?`)) send({ k: 'adm', a: 'kill', t: o }); });
+  }
   if (net.online && O && O.uid && o !== me) {
     add(muted.has(O.uid) ? 'Unmute chat' : 'Mute chat', null, () => {
       if (muted.has(O.uid)) muted.delete(O.uid); else muted.add(O.uid);
@@ -510,6 +517,56 @@ function openCtx(i, sx, sy) {
   sfx.play('click');
 }
 function closeCtx() { $('ctx').classList.add('hidden'); }
+
+// ---------- admin powers (only for roster slots flagged admin; the sim re-checks) ----------
+function renderPowers() {
+  const body = $('apBody'), P = game && game.players[me];
+  body.innerHTML = '';
+  if (!P || !P.admin) return;
+  if (game.phase !== 'play' || !P.alive) {
+    body.innerHTML = `<p>${P.alive ? 'Powers unlock once the match starts (after everyone picks land).' : 'You were eliminated.'}</p>`;
+    return;
+  }
+  const adm = (a, extra) => { send(Object.assign({ k: 'adm', a }, extra)); sfx.play('click'); };
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+  const section = (title) => { body.appendChild(el('h3', '', title)); const d = el('div', 'btns'); body.appendChild(d); return d; };
+  const button = (parent, label, fn, on) => { const b = el('button', on ? 'on' : 'ghost', label); b.onclick = fn; parent.appendChild(b); return b; };
+
+  let r = section('Money & army');
+  for (const n of [50000, 500000, 5000000]) button(r, `+${fmt(n)} gold`, () => adm('gold', { n }));
+  for (const n of [50000, 500000, 5000000]) button(r, `+${fmt(n)} troops`, () => adm('troops', { n }));
+
+  r = section('Cheats');
+  button(r, `God mode: ${P.god ? 'ON' : 'off'}`, () => adm('god'), P.god).title = 'Nobody can take your land; missiles, artillery and spies do nothing to you';
+  button(r, `Super army: ${P.power ? 'ON' : 'off'}`, () => adm('power'), P.power).title = 'Attacks cost 10x fewer troops and move 3x faster; expansion at max speed';
+  button(r, `Free everything: ${P.free ? 'ON' : 'off'}`, () => adm('free'), P.free).title = 'Free structures, missiles from anywhere with no silo, no cooldowns';
+  button(r, `See everything: ${R.reveal ? 'ON' : 'off'}`, () => { R.reveal = !R.reveal; renderPowers(); }, R.reveal).title = 'Turns off fog of war (only on your screen)';
+  button(r, 'Entrench 2 min', () => adm('shield'));
+
+  r = section('Players');
+  const others = game.players.filter((Q) => Q && Q.alive && Q.id !== me);
+  if (!others.length) r.appendChild(el('p', '', 'Nobody else is alive.'));
+  for (const Q of others) {
+    const row = el('div', 'ap-row');
+    const name = el('b', '', `${Q.name}${Q.ai ? ' (AI)' : ''}${Q.frozenUntil > game.tick ? ' - frozen' : ''}`);
+    name.style.color = Q.color;
+    row.appendChild(name);
+    button(row, 'Take over', () => adm('annex', { t: Q.id }));
+    button(row, 'Freeze 60s', () => adm('freeze', { t: Q.id }));
+    button(row, 'Drain', () => adm('drain', { t: Q.id }));
+    button(row, 'Gift 50k', () => adm('gift', { t: Q.id, n: 50000 }));
+    button(row, 'Wipe out', () => { if (confirm(`Wipe out ${Q.name}?`)) adm('kill', { t: Q.id }); });
+    r.appendChild(row);
+  }
+
+  r = section('Match');
+  button(r, 'Wipe out all AI', () => { if (confirm('Wipe out every AI nation?')) adm('killai'); });
+  button(r, 'Win now', () => { if (confirm('End the match with you as the winner?')) { adm('win'); $('admPow').classList.add('hidden'); } });
+  body.appendChild(el('p', 'small muted', 'Everyone in the match sees admin actions in the feed.'));
+}
+$('btnAdm').onclick = () => { renderPowers(); $('admPow').classList.remove('hidden'); };
+$('apClose').onclick = () => $('admPow').classList.add('hidden');
+$('admPow').onclick = (e) => { if (e.target === $('admPow')) $('admPow').classList.add('hidden'); };
 
 // ---------- sim events -> feed, sound, effects ----------
 function handleEvents() {
@@ -561,7 +618,17 @@ function handleEvents() {
       case 'ability': if (mine) sfx.play('ability'); break;
       case 'sunk': if (mine) { feed('One of your ships was sunk.', 'bad'); sfx.play('boom'); } break;
       case 'bot': feed(`${nm(e.p)} disconnected. An AI took over.`); break;
-      case 'admin': feed(`${nm(e.p)} used admin: ${{ gold: '+50k gold', troops: '+50k troops', shield: 'entrench', kill: 'wiped out ' + nm(e.t) }[e.a]}`, 'bad'); break;
+      case 'admin': {
+        const T = e.t ? nm(e.t) : '';
+        const what = {
+          gold: `+${fmt(e.n)} gold`, troops: `+${fmt(e.n)} troops`, shield: 'entrench', win: 'instant win',
+          god: `god mode ${e.on ? 'ON' : 'off'}`, power: `super army ${e.on ? 'ON' : 'off'}`, free: `free everything ${e.on ? 'ON' : 'off'}`,
+          kill: 'wiped out ' + T, annex: 'took over ' + T, drain: 'drained ' + T, freeze: `froze ${T} for 60s`, gift: `gave ${T} ${fmt(e.n)} gold`, killai: 'wiped out every AI',
+        }[e.a] || e.a;
+        feed(`${nm(e.p)} used admin: ${what}`, 'bad');
+        if (e.p === me && !$('admPow').classList.contains('hidden')) renderPowers();
+        break;
+      }
       case 'eliminated':
         feed(`${nm(e.p)} was eliminated.`, mine ? 'bad' : '');
         if (mine) { sfx.play('eliminated'); setBanner('You were eliminated', 'Spectating. Open Menu to leave.'); setTimeout(() => setBanner(null), 5000); }

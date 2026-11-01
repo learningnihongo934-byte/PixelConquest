@@ -191,3 +191,12 @@ button.sm { padding: 2px 6px; font-size: 8px; margin-left: 4px; }
 .tagx.lobby { background: var(--blue); color: #14121f; }
 #admin textarea { width: 100%; box-sizing: border-box; background: #0f0d18; color: var(--ink); border: 2px solid var(--line); font: 20px var(--txt); padding: 6px; }
 #admin code { font-size: 16px; user-select: all; -webkit-user-select: all; }
+
+/* in-game admin powers */
+.admpow { max-width: 640px; }
+.admpow h3 { margin: 16px 0 0; font-size: 16px; color: var(--gold); }
+.admpow .btns { margin-top: 8px; gap: 6px; }
+.admpow button.on { background: var(--gold); color: #14121f; }
+.ap-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: var(--panel2); border: 2px solid var(--line); padding: 6px 8px; margin-top: 6px; }
+.ap-row b { flex: 1; min-width: 110px; font-size: 14px; }
+.ap-row button { padding: 3px 6px; font-size: 12px; }

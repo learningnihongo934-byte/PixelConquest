@@ -40,12 +40,25 @@ async function checkAdmin() {
 function openAdmin() { $('admin').classList.remove('hidden'); render(); }
 function closeAdmin() { $('admin').classList.add('hidden'); if (location.hash === '#admin') history.replaceState(null, '', location.pathname + location.search); }
 
+// One popup at a time: a second click while the Google window is opening used to cancel the first
+// (auth/cancelled-popup-request) and show a scary error even though sign-in still worked.
+let signingIn = false;
 async function signIn() {
+  if (signingIn) return;
+  signingIn = true;
+  const btn = $('admSignIn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Opening Google...'; }
   try {
     await f.A.signInWithPopup(f.au, new f.A.GoogleAuthProvider());
     await checkAdmin();
+  } catch (e) {
+    if (e.code === 'auth/popup-blocked') ctx.toast('Your browser blocked the Google window. Allow pop-ups for this site, then try again.');
+    else if (e.code === 'auth/popup-closed-by-user') ctx.toast('Sign-in cancelled.');
+    else if (e.code !== 'auth/cancelled-popup-request') ctx.toast('Sign-in failed: ' + e.message);
+  } finally {
+    signingIn = false;
     render();
-  } catch (e) { ctx.toast(e.code === 'auth/popup-closed-by-user' ? 'Sign-in cancelled.' : 'Sign-in failed: ' + e.message); }
+  }
 }
 
 async function signOut() {
