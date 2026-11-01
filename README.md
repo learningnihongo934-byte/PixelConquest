@@ -2,7 +2,7 @@
 
 Pixel Conquest is a real-time pixel-art strategy game in the browser. You grow a nation on a real world map, then build, ally, betray and conquer, against friends online and against AI nations.
 
-Made by Virat Reddy Kaukuntla ([@learningnihongo934-byte](https://github.com/learningnihongo934-byte)).
+**Play it:** https://pixelconquest.web.app
 
 ## Features
 
@@ -66,3 +66,5 @@ Online play needs a Firebase project with **Anonymous** sign-in and a **Realtime
   - `[` `]` change the send %.
   - `Space` jumps home.
 - **Camera:** drag to pan, scroll to zoom.
+
+Made by **Virat Reddy Kaukuntla** ([@learningnihongo934-byte](https://github.com/learningnihongo934-byte))
