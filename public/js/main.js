@@ -182,7 +182,7 @@ function renderLobby(lb) {
   if (!lb) return;
   const host = net.isHost();
   if (!lb.host || (lb.status === 'lobby' && !lb.players)) { toast('The lobby closed.'); net.leave(); net = new LocalNet(); showScreen('menu'); return; }
-  if (lb.status === 'playing' && lb.roster && !(game && game.netGame === net)) { startOnline(lb); return; }
+  if (lb.status === 'playing' && lb.match && !(game && game.netGame === net)) { startOnline(lb.match); return; }
   if (!host) writeSettings(lb.settings);
   for (const id of ['setMode', 'setAis', 'setDiff', 'setWin', 'setTime']) $(id).disabled = !host;
   $('optPublic').parentElement.classList.toggle('hidden', !host);
@@ -234,12 +234,12 @@ function startFromSetup() {
   beginGame(roster, Object.assign({}, s, { seed: (Math.random() * 2 ** 31) | 0 }), 1, true);
 }
 
-function startOnline(lb) {
-  const roster = lb.roster;
+function startOnline(match) {
+  const roster = match.roster;
   const slot = roster.findIndex((r) => r.uid === net.uid) + 1;
   if (!slot) { toast('The match started without you.'); return; }
   net.beginMatch(roster, slot, () => feed('You are now the host.', 'good'));
-  beginGame(roster, lb.settings, slot, false);
+  beginGame(roster, Object.assign({}, match.settings), slot, false);
   game.netGame = net;
 }
 

@@ -22,7 +22,8 @@ async function loadFirebase() {
   if (!firebaseConfig) throw new Error('Online play is not set up yet (missing Firebase config).');
   const [app, auth, db] = await Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-auth.js'), import(SDK + 'firebase-database.js')]);
   const a = app.initializeApp(firebaseConfig);
-  const au = auth.getAuth(a);
+  // ?fresh = a throwaway player for this tab only (lets you test a lobby against yourself)
+  const au = new URLSearchParams(location.search).has('fresh') ? auth.initializeAuth(a, { persistence: auth.inMemoryPersistence }) : auth.getAuth(a);
   if (!au.currentUser) await auth.signInAnonymously(au);
   fb = { ...db, db: db.getDatabase(a), uid: au.currentUser.uid };
   return fb;
@@ -64,8 +65,8 @@ export class OnlineNet {
     await f.set(meRef, { name: clean(me.name, 16) || 'Player', color: me.color, team: me.team || 0, joined: Date.now(), online: true });
     f.onDisconnect(f.child(meRef, 'online')).set(false);
     // listen to each metadata key on its own; the lobby root also holds turns/inbox, which change 5x a second
-    this.lobby = { host: v.host, status: v.status, settings: v.settings || {}, players: v.players || {}, roster: v.roster || null };
-    for (const key of ['host', 'status', 'settings', 'players', 'roster']) {
+    this.lobby = { host: v.host, status: v.status, settings: v.settings || {}, players: v.players || {}, match: v.match || null };
+    for (const key of ['host', 'status', 'settings', 'players', 'match']) {
       this.unsubs.push(f.onValue(this.r(key), (s) => { this.lobby[key] = s.val(); this.onLobby && this.onLobby(this.lobby); }));
     }
     return this.code;
@@ -86,10 +87,11 @@ export class OnlineNet {
     return out;
   }
 
-  // host: freeze the roster and start the match
+  // host: freeze the roster and start the match. Roster + settings (with the seed) go in one
+  // node so every client starts from exactly the same data.
   async start(roster, settings) {
     const f = this.f;
-    await f.update(this.r(), { status: 'playing', roster, settings, startedAt: Date.now() });
+    await f.update(this.r(), { status: 'playing', match: { roster, settings }, startedAt: Date.now() });
     f.remove(f.ref(f.db, 'open/' + this.code));
   }
 
