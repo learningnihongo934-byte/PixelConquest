@@ -94,6 +94,16 @@ export class OnlineNet {
   }
 
   isHost() { return this.lobby && this.lobby.host === this.uid; }
+  // Why our player entry vanished: an admin kick/ban (marked under kicked/), the whole lobby
+  // being deleted, or this same account leaving from another tab (tabs share one sign-in).
+  async removalReason() {
+    try {
+      const [k, h] = await Promise.all([this.f.get(this.r('kicked/' + this.uid)), this.f.get(this.r('host'))]);
+      if (k.exists()) return 'admin';
+      if (!h.exists()) return 'closed';
+      return 'elsewhere';
+    } catch { return 'closed'; }
+  }
   setMe(patch) { return this.f.update(this.r('players/' + this.uid), patch); }
   setSettings(s) { return this.f.update(this.r('settings'), s); }
   setPublic(name, on) {

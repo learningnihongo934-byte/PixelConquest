@@ -107,10 +107,16 @@ async function render() {
   try { await TABS[tab](body); } catch (e) { body.innerHTML = `<p>Error: ${esc(e.message)}</p>`; }
 }
 
+// The kicked/ marker tells the player it was an admin (not their other tab, not a closed lobby).
+async function kickFrom(code, uid) {
+  await f.set(ref(`lobbies/${code}/kicked/${uid}`), true);
+  await f.remove(ref(`lobbies/${code}/players/${uid}`));
+}
+
 async function ban(uid, name) {
   if (!confirm(`Ban ${name} from online play? They will be removed from every lobby.`)) return;
   await f.set(ref('bans/' + uid), { name: String(name).slice(0, 16), ts: Date.now() });
-  for (const code of await lobbyCodes()) if (await val(`lobbies/${code}/players/${uid}/name`)) await f.remove(ref(`lobbies/${code}/players/${uid}`));
+  for (const code of await lobbyCodes()) if (await val(`lobbies/${code}/players/${uid}/name`)) await kickFrom(code, uid);
   ctx.toast(`${name} is banned.`);
   render();
 }
@@ -151,7 +157,7 @@ const TABS = {
         <div class="adm-players">${ps.map(([uid, p]) => `<span>${esc(p.name)}${uid === r.host ? ' (host)' : ''}${p.online === false ? ' (off)' : ''}
           <button class="ghost sm" data-kick="${esc(uid)}">Kick</button><button class="ghost sm" data-ban="${esc(uid)}" data-name="${esc(p.name)}">Ban</button></span>`).join('')}</div>`;
       d.querySelector('[data-del]').onclick = async () => { await f.remove(ref('lobbies/' + r.code)); await f.remove(ref('open/' + r.code)); render(); };
-      d.querySelectorAll('[data-kick]').forEach((b) => { b.onclick = async () => { await f.remove(ref(`lobbies/${r.code}/players/${b.dataset.kick}`)); render(); }; });
+      d.querySelectorAll('[data-kick]').forEach((b) => { b.onclick = async () => { await kickFrom(r.code, b.dataset.kick); render(); }; });
       d.querySelectorAll('[data-ban]').forEach((b) => { b.onclick = () => ban(b.dataset.ban, b.dataset.name); });
       list.appendChild(d);
     }

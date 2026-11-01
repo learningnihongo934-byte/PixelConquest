@@ -34,7 +34,7 @@ function fixStaticIcons() {
 function toast(msg) {
   const t = $('toast');
   t.textContent = msg; t.classList.add('on');
-  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2600);
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), Math.max(2600, msg.length * 55));
 }
 
 // ---------- boot ----------
@@ -208,8 +208,17 @@ function renderLobby(lb) {
   }
 }
 
-function kicked() {
-  toast('You were removed by an admin.');
+async function kicked() {
+  const n = net;
+  if (n.kickHandled) return;
+  n.kickHandled = true;
+  const why = await n.removalReason();
+  toast({
+    admin: 'You were removed by an admin.',
+    closed: 'This match was closed.',
+    elsewhere: 'You left this lobby from another tab or window. Use a private window or ?fresh to play against yourself.',
+  }[why]);
+  if (net !== n) return;
   if (game && game !== attract) leaveMatch();
   else { net.leave(); net = new LocalNet(); showScreen('menu'); }
 }
