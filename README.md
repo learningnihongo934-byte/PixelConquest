@@ -76,7 +76,14 @@ Made by **Virat Reddy Kaukuntla** ([@learningnihongo934-byte](https://github.com
 
 Open `https://pixelconquest.web.app/#admin` and sign in with Google. Only accounts listed under `/admins` in the Realtime Database are admins (add one with `firebase database:set /admins/<uid> --data true`); the database rules enforce it. Admins get an **Admin** button on the menu and in the in-game menu:
 
-- **Overview:** players online, live matches, waiting lobbies, bans. In a match: +50k gold, +50k troops, 2-minute entrench, reveal fog of war, and "Admin: wipe out" in the right-click menu (everyone in the match sees admin actions).
+- **Overview:** players online, live matches, waiting lobbies and bans.
+- **In a match:** an **Admin** button on the top bar opens the powers panel:
+  - **Money and army:** +50k, +500k or +5M gold or troops.
+  - **Toggles:** god mode (your land can't be taken, and missiles, artillery and spies don't hurt you), super army (attacks cost 10x fewer troops and move 3x faster), free everything (free structures, missiles from anywhere with no silo, no cooldowns), and see everything (fog off, on your screen only).
+  - **Against any nation:** take over (all their land and buildings), freeze for 60 seconds, drain their troops and gold, gift 50k, or wipe out.
+  - **Whole match:** wipe out all AI, or win now.
+  - The right-click menu has take over, freeze, drain and wipe out too.
+  - Every power runs through the lockstep command stream and is checked in the sim (`tools/admintest.mjs`). Everyone in the match sees admin actions in the feed.
 - **Lobbies:** delete lobbies, kick or ban players, clean up ended and stale lobbies.
 - **Chat:** recent messages from every lobby, with delete and ban.
 - **Bans / Announce:** unban players; post a banner shown on everyone's main menu.
