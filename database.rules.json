@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "lobbies": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('host').val() === auth.uid)",
+        "host": { ".write": "auth != null && data.parent().child('players').child(auth.uid).exists()" },
+        "players": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length <= 16)"
+          }
+        },
+        "inbox": {
+          "$id": {
+            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid",
+            ".validate": "newData.child('c').isString() && newData.child('c').val().length <= 600"
+          }
+        },
+        "hashes": { "$uid": { ".write": "auth != null && auth.uid === $uid" } }
+      }
+    },
+    "open": {
+      ".read": "auth != null",
+      "$code": {
+        ".write": "auth != null && (!root.child('lobbies').child($code).exists() || root.child('lobbies').child($code).child('host').val() === auth.uid)"
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+data/raw/
+.firebase/
+firebase-debug.log
+.DS_Store

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pixel Conquest</title>
+<meta name="description" content="Real-time pixel-art world conquest. Grow a nation on a real world map, build 20 kinds of structures, and fight friends and AI.">
+<meta property="og:title" content="Pixel Conquest">
+<meta property="og:description" content="Real-time pixel-art world conquest against friends and AI.">
+<meta property="og:image" content="art/og.png">
+<link rel="icon" href="art/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<!-- main menu -->
+<section id="menu" class="screen">
+  <div class="panel menu-panel">
+    <h1 class="logo"><span class="ico" style="--i:0"></span>PIXEL<br>CONQUEST</h1>
+    <p class="tag">Grow a nation on a real world map. Build, ally, betray, conquer.</p>
+    <label class="field">Your name <input id="name" maxlength="16" autocomplete="off"></label>
+    <div class="field">Your color <div id="swatches" class="swatches"></div></div>
+    <div class="btns">
+      <button id="btnSolo" class="big">Play vs AI</button>
+      <button id="btnCreate" class="big alt">Create lobby</button>
+    </div>
+    <div class="join-row">
+      <input id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off">
+      <button id="btnJoin">Join</button>
+      <button id="btnBrowse" class="ghost">Open lobbies</button>
+    </div>
+    <div id="openList" class="open-list hidden"></div>
+    <div class="row small">
+      <label><input type="checkbox" id="optSfx"> Sound effects</label>
+      <label><input type="checkbox" id="optMusic"> Music</label>
+      <button id="btnHelp" class="ghost">How to play</button>
+    </div>
+  </div>
+</section>
+
+<!-- match setup: solo settings, or the online lobby -->
+<section id="setup" class="screen hidden">
+  <div class="panel setup-panel">
+    <h2 id="setupTitle">Solo match</h2>
+    <div id="lobbyBox" class="hidden">
+      <div class="code-row">Lobby code <b id="lobbyCode">-----</b> <button id="btnCopy" class="ghost">Copy invite link</button></div>
+      <div id="playerList" class="player-list"></div>
+      <label class="small"><input type="checkbox" id="optPublic"> List in Open lobbies</label>
+    </div>
+    <div class="grid">
+      <label>Mode <select id="setMode"><option value="ffa">Free for all</option><option value="teams2">2 teams</option><option value="teams3">3 teams</option><option value="teams4">4 teams</option></select></label>
+      <label>My team <select id="setTeam"><option value="1">Team 1</option><option value="2">Team 2</option><option value="3">Team 3</option><option value="4">Team 4</option></select></label>
+      <label>AI nations <input type="range" id="setAis" min="0" max="48" value="20"> <b id="setAisV">20</b></label>
+      <label>AI difficulty <select id="setDiff"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option><option value="brutal">Brutal</option></select></label>
+      <label>Win at <select id="setWin"><option value="0.5">50% of land</option><option value="0.6" selected>60% of land</option><option value="0.75">75% of land</option><option value="0.9">90% of land</option></select></label>
+      <label>Time limit <select id="setTime"><option value="0">None</option><option value="15">15 min</option><option value="25" selected>25 min</option><option value="40">40 min</option></select></label>
+    </div>
+    <div class="btns">
+      <button id="btnBack" class="ghost">Back</button>
+      <button id="btnStart" class="big">Start</button>
+    </div>
+    <p id="setupNote" class="small muted"></p>
+  </div>
+</section>
+
+<!-- in-game HUD -->
+<section id="hud" class="hidden">
+  <div id="topbar">
+    <div class="stat" title="Troops / troop cap"><span class="ico" style="--i:25"></span><b id="sTroops">0</b><small id="sCap"></small></div>
+    <div class="stat" title="Gold (+ per second)"><span class="ico" style="--i:26"></span><b id="sGold">0</b><small id="sGoldR"></small></div>
+    <div class="stat" title="Science. Unlocks tiers 2, 3 and 4"><span class="ico" style="--i:5"></span><b id="sTier">T1</b><div class="bar"><i id="sSci"></i></div></div>
+    <div class="stat ratio" title="How many of your troops each attack sends ( [ and ] keys)"><span>Send</span><input type="range" id="ratio" min="5" max="100" step="5" value="30"><b id="ratioV">30%</b></div>
+    <div class="abil" id="abilities"></div>
+    <div class="menu-btns">
+      <button id="btnPause" class="ghost hidden" title="Pause (solo)">II</button>
+      <button id="btnRetreat" class="ghost" title="Recall all your attacks (V)">Retreat</button>
+      <button id="btnMenu" class="ghost">Menu</button>
+    </div>
+  </div>
+  <div id="feed"></div>
+  <div id="board"></div>
+  <div id="modebar" class="hidden"></div>
+  <div id="bottombar">
+    <div id="buildbar"></div>
+    <div id="missilebar"></div>
+  </div>
+  <div id="banner" class="hidden"></div>
+  <div id="ctx" class="hidden"></div>
+  <div id="tip" class="hidden"></div>
+  <div id="gameMenu" class="modal hidden">
+    <div class="panel">
+      <h2>Menu</h2>
+      <div class="btns col">
+        <button id="gmResume">Resume</button>
+        <button id="gmHelp" class="ghost">How to play</button>
+        <button id="gmSurrender" class="ghost">Surrender</button>
+        <button id="gmLeave" class="ghost">Leave match</button>
+      </div>
+    </div>
+  </div>
+  <div id="end" class="modal hidden"><div class="panel"><h2 id="endTitle"></h2><div id="endStats"></div><div class="btns"><button id="endMenu" class="big">Main menu</button><button id="endWatch" class="ghost">Keep watching</button></div></div></div>
+</section>
+
+<section id="help" class="modal hidden">
+  <div class="panel help">
+    <h2>How to play</h2>
+    <ul>
+      <li><b>Spawn:</b> click anywhere on land during the countdown to pick your start.</li>
+      <li><b>Expand & attack:</b> left-click wilderness or an enemy. You send the <b>Send %</b> of your troops, and they push toward where you clicked. Click again to steer.</li>
+      <li><b>Right-click</b> (long-press on phones) any tile for every option: boats, paradrops, missiles, sabotage, alliances, emotes, pings.</li>
+      <li><b>Build</b> from the bar at the bottom (or hotkeys 1-8, Q-T, A-H). Research Labs give science, which unlocks tiers 2-4.</li>
+      <li><b>Abilities:</b> Z Blitz, X Entrench, C Rally. <b>V</b> recalls attacks. <b>Space</b> jumps home. Drag to pan, scroll to zoom.</li>
+      <li><b>Terrain matters:</b> mountains, jungle and rivers are slow and easy to defend. Bunkers and Fortresses make land much harder to take.</li>
+      <li><b>Fog of war:</b> enemy structures are hidden unless they are near your land, a Watchtower or a Radar. Enemy troop counts are estimates unless you are allied, spying, or have a Radar.</li>
+      <li><b>Diplomacy:</b> up to 3 allies. Breaking an alliance gives them a 10-second warning and marks you a traitor for 90s.</li>
+      <li><b>Win</b> by holding the target share of the world's land, by being the last one standing, or by having the most land when time runs out.</li>
+    </ul>
+    <div class="btns"><button id="helpClose" class="big">Got it</button></div>
+  </div>
+</section>
+
+<div id="toast"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
