@@ -312,6 +312,7 @@ function updateHud() {
   const P = game.players[me];
   if (!P) return;
   $('sTroops').textContent = fmt(P.troops);
+  showSendCount();
   $('sCap').textContent = '/' + fmt(P.cap);
   $('sGold').textContent = fmt(P.gold);
   $('sGoldR').textContent = '+' + fmt(P.goldRate) + '/s';
@@ -451,6 +452,14 @@ function openCtx(i, sx, sy) {
   const alive = P && P.alive;
   if (game.phase === 'spawn' && !ter.water) add('Spawn here', 0, () => send({ k: 'spawn', x, y }));
   if (alive && game.phase === 'play' && !ter.water && o !== me && !(o && game.allied(me, o))) {
+    // troop picker: sets the same send % as the top bar, used by the actions below
+    const tr = document.createElement('div'); tr.className = 'troops';
+    tr.innerHTML = `<div class="row1"><input type="range" min="5" max="100" step="5" value="${$('ratio').value}"><b></b></div>
+      <div class="row2">${[10, 25, 50, 75, 100].map((r) => `<button data-r="${r}">${r === 100 ? 'All' : r + '%'}</button>`).join('')}</div>`;
+    tr.querySelector('input').oninput = (e) => setRatio(+e.target.value);
+    tr.querySelector('.row2').onclick = (e) => { const b = e.target.closest('[data-r]'); if (b) { setRatio(+b.dataset.r); sfx.play('click'); } };
+    el.appendChild(tr);
+    setRatio(+$('ratio').value);
     add(o ? 'Attack here' : 'Expand here', 25, () => send({ k: 'atk', x, y, r: ratio() }));
     const coastal = game.isCoastal(i);
     add('Send troop boat', 20, () => send({ k: 'boat', x, y, r: ratio() }), coastal && P.counts.harbor > 0, coastal ? 'Needs a Harbor' : 'Must target a coast');
@@ -633,18 +642,38 @@ cv.addEventListener('pointerup', endPointer);
 cv.addEventListener('pointercancel', (e) => { pointers.delete(e.pointerId); drag = null; pinch = null; });
 cv.addEventListener('wheel', (e) => {
   e.preventDefault();
-  if (e.shiftKey) { $('ratio').value = Math.max(5, Math.min(100, +$('ratio').value + (e.deltaY < 0 ? 5 : -5))); $('ratio').oninput(); return; }
+  if (e.shiftKey) { setRatio(+$('ratio').value + ((e.deltaY || e.deltaX) < 0 ? 5 : -5)); return; }
   R.zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015));
 }, { passive: false });
 window.addEventListener('resize', () => R && R.resize());
-$('ratio').oninput = () => { $('ratioV').textContent = $('ratio').value + '%'; };
+// one send % for every troop action (attack, expand, boat, paradrop); remembered between games
+function setRatio(pct) {
+  pct = Math.max(5, Math.min(100, Math.round(pct / 5) * 5));
+  $('ratio').value = pct;
+  $('ratioV').textContent = pct + '%';
+  for (const b of document.querySelectorAll('[data-r]')) b.classList.toggle('on', +b.dataset.r === pct);
+  const ctxSlider = document.querySelector('#ctx .troops input');
+  if (ctxSlider) ctxSlider.value = pct;
+  showSendCount();
+  store('pc.ratio', String(pct));
+}
+function showSendCount() {
+  const P = game && game.players[me];
+  const n = P ? fmt(P.troops * ratio()) : '';
+  $('ratioN').textContent = n ? '= ' + n : '';
+  const c = document.querySelector('#ctx .troops b');
+  if (c) c.textContent = `${$('ratio').value}% · ${n} troops`;
+}
+$('ratio').oninput = () => setRatio(+$('ratio').value);
+$('ratioPresets').onclick = (e) => { const b = e.target.closest('[data-r]'); if (b) { setRatio(+b.dataset.r); sfx.play('click'); } };
+setRatio(+(store('pc.ratio') || 30));
 
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || !game || game === attract) return;
   const k = e.key.toLowerCase();
   if (k === 'escape') { if (mode) setMode(null); else if (!$('ctx').classList.contains('hidden')) closeCtx(); else $('gameMenu').classList.toggle('hidden'); return; }
   if (k === ' ') { e.preventDefault(); const P = game.players[me]; if (P && P.spawnI >= 0) { const cap = game.structs.find((s) => s.owner === me && s.type === 'capital'); R.centerOn(cap ? cap.i : P.tiles ? game.idx(Math.floor(P.sumX / P.tiles), Math.floor(P.sumY / P.tiles)) : P.spawnI, Math.max(R.cam.z, 6)); } return; }
-  if (k === '[' || k === ']') { $('ratio').value = Math.max(5, Math.min(100, +$('ratio').value + (k === ']' ? 10 : -10))); $('ratio').oninput(); return; }
+  if (k === '[' || k === ']') { setRatio(+$('ratio').value + (k === ']' ? 10 : -10)); return; }
   if (k === 'v') { send({ k: 'retreat' }); return; }
   for (const [a, A] of Object.entries(ABILITIES)) if (A.key === k) { send({ k: 'ab', a }); return; }
   for (const s of STRUCTURE_ORDER) if (STRUCTURES[s].key === k) { setMode(mode && mode.s === s ? null : { k: 'build', s }); return; }

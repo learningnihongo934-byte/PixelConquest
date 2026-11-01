@@ -65,6 +65,16 @@ h2 { font-size: 16px; color: var(--gold); }
 .stat .bar { width: 70px; height: 10px; background: #0f0d18; border: 2px solid var(--line); }
 .stat .bar i { display: block; height: 100%; background: var(--blue); width: 0; }
 .ratio input { width: 110px; }
+.ratio b { min-width: 46px; text-align: right; }
+.ratio small { min-width: 52px; }
+.presets { display: flex; gap: 3px; }
+.presets button, #ctx .troops button { font-family: var(--px); font-size: 8px; padding: 4px 5px; box-shadow: 0 2px 0 #14121f; background: var(--panel2); color: var(--ink); border: 2px solid var(--line); }
+.presets button.on, #ctx .troops button.on { background: var(--gold); color: #14121f; border-color: #14121f; }
+#ctx .troops { padding: 4px; border-bottom: 2px solid var(--line); margin-bottom: 4px; }
+#ctx .troops .row1 { display: flex; align-items: center; gap: 6px; }
+#ctx .troops input { flex: 1; min-width: 0; }
+#ctx .troops .row2 { display: flex; gap: 3px; margin-top: 4px; }
+#ctx .troops .row2 button { flex: 1; display: block; width: auto; text-align: center; }
 .abil { display: flex; gap: 6px; }
 .abil button, .bb { position: relative; padding: 3px; background: var(--panel); border: 2px solid var(--line); box-shadow: none; display: flex; flex-direction: column; align-items: center; color: var(--ink); font-family: var(--txt); font-size: 16px; }
 .abil button .cd, .bb .cd { position: absolute; inset: 0; background: rgba(10,10,20,0.75); color: var(--gold); display: flex; align-items: center; justify-content: center; font-family: var(--px); font-size: 10px; }
@@ -134,6 +144,7 @@ h2 { font-size: 16px; color: var(--gold); }
   #board .pct { display: none; }
   .stat b { font-size: 19px; }
   .ratio input { width: 70px; }
+  .ratio small { display: none; }
   .grid { grid-template-columns: 1fr; }
   .bb { width: 50px; min-height: 52px; }
   .logo { font-size: 20px; }

@@ -73,7 +73,11 @@
     <div class="stat" title="Troops / troop cap"><span class="ico" style="--i:25"></span><b id="sTroops">0</b><small id="sCap"></small></div>
     <div class="stat" title="Gold (+ per second)"><span class="ico" style="--i:26"></span><b id="sGold">0</b><small id="sGoldR"></small></div>
     <div class="stat" title="Science. Unlocks tiers 2, 3 and 4"><span class="ico" style="--i:5"></span><b id="sTier">T1</b><div class="bar"><i id="sSci"></i></div></div>
-    <div class="stat ratio" title="How many of your troops each attack sends ( [ and ] keys)"><span>Send</span><input type="range" id="ratio" min="5" max="100" step="5" value="30"><b id="ratioV">30%</b></div>
+    <div class="stat ratio" title="How many of your troops each attack, expansion, boat or paradrop uses ( [ ] keys or Shift+scroll)">
+      <span>Send</span><input type="range" id="ratio" min="5" max="100" step="5" value="30">
+      <b id="ratioV">30%</b><small id="ratioN"></small>
+      <span class="presets" id="ratioPresets"><button data-r="10">10</button><button data-r="25">25</button><button data-r="50">50</button><button data-r="75">75</button><button data-r="100">All</button></span>
+    </div>
     <div class="abil" id="abilities"></div>
     <div class="menu-btns">
       <button id="btnPause" class="ghost hidden" title="Pause (solo)">II</button>
