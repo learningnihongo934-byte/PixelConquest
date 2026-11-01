@@ -18,7 +18,7 @@ Pixel Conquest is a real-time pixel-art strategy game in the browser. You grow a
   - **Retreat:** recall your attacks.
   - **Fog of war:** enemy structures are hidden, and enemy troop counts are estimates.
   - **Alliances:** capped at 3, and breaking one gives a 10-second warning and a traitor penalty.
-  - **Communication:** quick-chat emotes and ally pings.
+  - **Communication:** text chat in the lobby and in-game, with All and Allies-only channels, a swear filter, a rate limit and per-player mute. Quick-chat emotes and ally pings too.
 - **Modes:** free for all or 2, 3 or 4 teams. You can win by land share, by being last standing, or on a time limit.
 - **AI nations:** four difficulties (Easy, Normal, Hard, Brutal) and three personalities (economist, warmonger, turtle). They expand, build, form and break alliances, invade by sea and air, and fire missiles.
 - **Multiplayer with friends:**
@@ -65,6 +65,7 @@ Online play needs a Firebase project with **Anonymous** sign-in and a **Realtime
   - `V` retreats.
   - `[` `]` change the send %.
   - `Space` jumps home.
+  - `Enter` opens chat online, and `Tab` switches between All and Allies.
 - **Camera:** drag to pan, scroll to zoom.
 
 Made by **Virat Reddy Kaukuntla** ([@learningnihongo934-byte](https://github.com/learningnihongo934-byte))

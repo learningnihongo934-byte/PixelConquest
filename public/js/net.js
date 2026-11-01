@@ -69,7 +69,16 @@ export class OnlineNet {
     for (const key of ['host', 'status', 'settings', 'players', 'match']) {
       this.unsubs.push(f.onValue(this.r(key), (s) => { this.lobby[key] = s.val(); this.onLobby && this.onLobby(this.lobby); }));
     }
+    this.unsubs.push(f.onChildAdded(f.query(this.r('chat'), f.limitToLast(40)), (s) => {
+      const v = s.val();
+      if (v && typeof v.t === 'string' && typeof v.u === 'string') this.onChat && this.onChat(v);
+    }));
     return this.code;
+  }
+
+  // chat lives beside the match, not in the lockstep turns, so it never touches the sim
+  sendChat(name, text, ch) {
+    return this.f.push(this.r('chat'), { u: this.uid, n: clean(name, 16) || 'Player', t: String(text).slice(0, 140), ch, ts: this.f.serverTimestamp() });
   }
 
   isHost() { return this.lobby && this.lobby.host === this.uid; }

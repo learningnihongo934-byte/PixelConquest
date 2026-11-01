@@ -141,6 +141,8 @@ async function createLobby() {
   if (!n) return;
   net = n;
   net.onLobby = renderLobby;
+  net.onChat = onChat;
+  $('lobbyChatLog').innerHTML = ''; $('chatLog').innerHTML = '';
   try {
     await net.create({ name: $('name').value, color: myColor, team: 1 }, readSettings());
     $('lobbyCode').textContent = net.code;
@@ -154,6 +156,8 @@ async function joinLobby(code) {
   if (!n) return;
   net = n;
   net.onLobby = renderLobby;
+  net.onChat = onChat;
+  $('lobbyChatLog').innerHTML = ''; $('chatLog').innerHTML = '';
   try {
     await net.join(code, { name: $('name').value, color: myColor, team: 1 });
     $('lobbyCode').textContent = net.code;
@@ -253,6 +257,8 @@ function beginGame(roster, settings, slot, isSolo) {
   $('feed').innerHTML = '';
   $('end').classList.add('hidden');
   $('btnPause').classList.toggle('hidden', !isSolo);
+  $('chat').classList.toggle('hidden', isSolo);
+  closeChat(); setChatCh('all');
   buildHud();
   showScreen('hud');
   setBanner('Pick your starting land', 'Click anywhere on land');
@@ -474,6 +480,13 @@ function openCtx(i, sx, sy) {
     } else add(P.allyReq.has(o) ? 'Accept alliance' : O.allyReq.has(me) ? 'Alliance requested' : 'Request alliance', 30, () => send({ k: 'ally', t: o }), !O.allyReq.has(me));
   }
   if (alive && !ter.water) add('Ping for allies', 29, () => send({ k: 'ping', x, y }));
+  if (net.online && O && O.uid && o !== me) {
+    add(muted.has(O.uid) ? 'Unmute chat' : 'Mute chat', null, () => {
+      if (muted.has(O.uid)) muted.delete(O.uid); else muted.add(O.uid);
+      store('pc.muted', JSON.stringify([...muted]));
+      toast(muted.has(O.uid) ? `Muted ${O.name}.` : `Unmuted ${O.name}.`);
+    });
+  }
   if (O && o !== me) {
     const em = document.createElement('div'); em.className = 'emotes';
     EMOTES.forEach((t, k) => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => { closeCtx(); send({ k: 'emote', e: k, t: o }); }; em.appendChild(b); });
@@ -688,6 +701,61 @@ $('gmSurrender').onclick = () => { send({ k: 'surrender' }); $('gameMenu').class
 $('gmLeave').onclick = leaveMatch;
 $('endMenu').onclick = leaveMatch;
 $('endWatch').onclick = () => $('end').classList.add('hidden');
+
+// ---------- chat (online only; travels beside the lockstep turns, never through the sim) ----------
+let muted = new Set();
+try { muted = new Set(JSON.parse(store('pc.muted') || '[]')); } catch { /* fresh list */ }
+let chatCh = 'all', chatLast = 0;
+const BAD = /(f+u+c+k+|sh+i+t+|b+i+t+c+h+|c+u+n+t+|d+i+c+k+|p+u+s+s+y+|a+s+s+h+o+l+e+|bastard|n+i+g+g+|f+a+g+|retard|whore|slut)\w*/gi;
+const filterText = (t) => t.replace(BAD, (w) => w[0] + '*'.repeat(w.length - 1));
+
+function onChat(v) {
+  if (muted.has(v.u)) return;
+  const inGame = game && game.netGame === net;
+  let color = '#f4f4f4', slot = 0;
+  if (inGame) { slot = game.players.findIndex((P) => P && P.uid === v.u); if (slot > 0) color = game.players[slot].color; }
+  else { const p = net.lobby && net.lobby.players && net.lobby.players[v.u]; if (p && /^#[0-9a-f]{6}$/i.test(p.color)) color = p.color; }
+  if (v.ch === 'ally' && inGame && v.u !== net.uid && !(slot > 0 && game.allied(slot, me))) return;
+  const line = document.createElement('div');
+  if (v.ch === 'ally') line.insertAdjacentHTML('beforeend', '<span class="tag">[ALLY]</span>');
+  const b = document.createElement('b');
+  b.style.color = color; b.textContent = String(v.n).slice(0, 16) + ':';
+  line.appendChild(b);
+  line.appendChild(document.createTextNode(filterText(v.t)));
+  for (const id of ['lobbyChatLog', 'chatLog']) {
+    const log = $(id);
+    log.appendChild(line.cloneNode(true));
+    while (log.children.length > 50) log.firstChild.remove();
+    log.scrollTop = log.scrollHeight;
+  }
+  if (v.u !== net.uid) sfx.play('emote');
+}
+
+function sendChatMsg(text, ch) {
+  text = text.trim();
+  if (!text || !net || !net.online) return;
+  const now = performance.now();
+  if (now - chatLast < 1200) { toast('Slow down a little.'); return; }
+  chatLast = now;
+  net.sendChat($('name').value, text, ch).catch(() => toast('Message not sent.'));
+}
+function setChatCh(ch) { chatCh = ch; $('chatCh').textContent = ch === 'ally' ? 'ALLIES' : 'ALL'; $('chatCh').classList.toggle('ally', ch === 'ally'); }
+function openChat() { $('chat').classList.add('open'); $('chatIn').focus(); }
+function closeChat() { $('chat').classList.remove('open'); $('chatIn').blur(); }
+
+$('lobbyChatForm').onsubmit = (e) => { e.preventDefault(); sendChatMsg($('lobbyChatIn').value, 'all'); $('lobbyChatIn').value = ''; };
+$('chatForm').onsubmit = (e) => { e.preventDefault(); sendChatMsg($('chatIn').value, chatCh); $('chatIn').value = ''; closeChat(); };
+$('chatCh').onclick = () => { setChatCh(chatCh === 'all' ? 'ally' : 'all'); $('chatIn').focus(); };
+$('chatIn').onkeydown = (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); closeChat(); }
+  if (e.key === 'Tab') { e.preventDefault(); setChatCh(chatCh === 'all' ? 'ally' : 'all'); }
+};
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !net || !net.online || $('chat').classList.contains('hidden') || document.activeElement === $('chatIn')) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  e.preventDefault();
+  openChat();
+});
 
 // ---------- loop ----------
 function runTick() {

@@ -17,7 +17,13 @@
             ".validate": "newData.child('c').isString() && newData.child('c').val().length <= 600"
           }
         },
-        "hashes": { "$uid": { ".write": "auth != null && auth.uid === $uid" } }
+        "hashes": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
+        "chat": {
+          "$id": {
+            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid && root.child('lobbies').child($code).child('players').child(auth.uid).exists()",
+            ".validate": "newData.child('t').isString() && newData.child('t').val().length > 0 && newData.child('t').val().length <= 140 && newData.child('n').isString() && newData.child('n').val().length <= 16 && (newData.child('ch').val() === 'all' || newData.child('ch').val() === 'ally')"
+          }
+        }
       }
     },
     "open": {

@@ -49,6 +49,10 @@
     <div id="lobbyBox" class="hidden">
       <div class="code-row">Lobby code <b id="lobbyCode">-----</b> <button id="btnCopy" class="ghost">Copy invite link</button></div>
       <div id="playerList" class="player-list"></div>
+      <div class="lobby-chat">
+        <div id="lobbyChatLog" class="chat-log"></div>
+        <form id="lobbyChatForm" class="chat-form"><input id="lobbyChatIn" maxlength="140" placeholder="Say hi to the lobby..." autocomplete="off"><button>Send</button></form>
+      </div>
       <label class="small"><input type="checkbox" id="optPublic"> List in Open lobbies</label>
     </div>
     <div class="grid">
@@ -88,6 +92,10 @@
   <div id="feed"></div>
   <div id="board"></div>
   <div id="modebar" class="hidden"></div>
+  <div id="chat" class="hidden">
+    <div id="chatLog" class="chat-log"></div>
+    <form id="chatForm" class="chat-form"><button type="button" id="chatCh" title="Tab switches between everyone and allies only">ALL</button><input id="chatIn" maxlength="140" placeholder="Press Enter to chat" autocomplete="off"></form>
+  </div>
   <div id="bottombar">
     <div id="buildbar"></div>
     <div id="missilebar"></div>
