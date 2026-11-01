@@ -17,15 +17,17 @@ export class LocalNet {
 }
 
 let fb = null;
-async function loadFirebase() {
+export async function loadFirebase() {
   if (fb) return fb;
   if (!firebaseConfig) throw new Error('Online play is not set up yet (missing Firebase config).');
   const [app, auth, db] = await Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-auth.js'), import(SDK + 'firebase-database.js')]);
   const a = app.initializeApp(firebaseConfig);
   // ?fresh = a throwaway player for this tab only (lets you test a lobby against yourself)
   const au = new URLSearchParams(location.search).has('fresh') ? auth.initializeAuth(a, { persistence: auth.inMemoryPersistence }) : auth.getAuth(a);
+  await au.authStateReady();
   if (!au.currentUser) await auth.signInAnonymously(au);
-  fb = { ...db, db: db.getDatabase(a), uid: au.currentUser.uid };
+  // uid is a getter: signing in with Google (admin) swaps the user mid-session
+  fb = { ...db, db: db.getDatabase(a), au, A: auth, get uid() { return au.currentUser.uid; } };
   return fb;
 }
 
@@ -35,7 +37,17 @@ const clean = (s, n) => String(s || '').replace(/[^\w .!?'-]/g, '').slice(0, n);
 export class OnlineNet {
   constructor() { this.online = true; this.turns = new Map(); this.maxTurn = -1; this.unsubs = []; this.pending = []; this.slotOf = {}; this.lobby = null; }
 
-  async connect() { this.f = await loadFirebase(); this.uid = this.f.uid; return this; }
+  async connect() {
+    this.f = await loadFirebase();
+    this.uid = this.f.uid;
+    const ban = await this.f.get(this.f.ref(this.f.db, 'bans/' + this.uid));
+    if (ban.exists()) throw new Error('You are banned from online play.');
+    return this;
+  }
+  async adminUids() {
+    const snap = await this.f.get(this.f.ref(this.f.db, 'admins'));
+    return new Set(Object.keys(snap.val() || {}));
+  }
   r(path) { return this.f.ref(this.f.db, `lobbies/${this.code}` + (path ? '/' + path : '')); }
 
   async create(me, settings) {
@@ -126,6 +138,7 @@ export class OnlineNet {
     this.unsubs.push(this.f.onValue(this.r('players'), (s) => {
       const players = s.val() || {};
       if (!this.lobby) return;
+      if (!players[this.uid]) { this.onKicked && this.onKicked(); return; }
       const hostGone = !players[this.lobby.host] || players[this.lobby.host].online === false;
       if (hostGone && !this.hosting) {
         // the first still-online player in roster order takes over as host

@@ -4,6 +4,7 @@ import { Game } from './sim.js';
 import { Renderer, fmt } from './render.js';
 import { Sfx } from './sfx.js';
 import { LocalNet, OnlineNet } from './net.js';
+import { initAdmin, admin } from './admin.js';
 
 const $ = (id) => document.getElementById(id);
 const cv = $('cv');
@@ -46,6 +47,7 @@ async function boot() {
   MAP = { w: dv.getUint16(0, true), h: dv.getUint16(2, true), terrain: new Uint8Array(buf, 4) };
   ICONS = img;
   initMenu();
+  initAdmin({ get game() { return game; }, get me() { return me; }, get R() { return R; }, send, toast, feed: (t, c) => feed(String(t).replace(/</g, '&lt;'), c), inMatch: () => !!game && game !== attract && game.phase !== 'over' });
   fixStaticIcons();
   startAttract();
   const join = new URLSearchParams(location.search).get('join');
@@ -142,6 +144,7 @@ async function createLobby() {
   net = n;
   net.onLobby = renderLobby;
   net.onChat = onChat;
+  net.onKicked = kicked;
   $('lobbyChatLog').innerHTML = ''; $('chatLog').innerHTML = '';
   try {
     await net.create({ name: $('name').value, color: myColor, team: 1 }, readSettings());
@@ -157,6 +160,7 @@ async function joinLobby(code) {
   net = n;
   net.onLobby = renderLobby;
   net.onChat = onChat;
+  net.onKicked = kicked;
   $('lobbyChatLog').innerHTML = ''; $('chatLog').innerHTML = '';
   try {
     await net.join(code, { name: $('name').value, color: myColor, team: 1 });
@@ -186,6 +190,7 @@ function renderLobby(lb) {
   if (!lb) return;
   const host = net.isHost();
   if (!lb.host || (lb.status === 'lobby' && !lb.players)) { toast('The lobby closed.'); net.leave(); net = new LocalNet(); showScreen('menu'); return; }
+  if (lb.players && !lb.players[net.uid] && lb.status === 'lobby') { kicked(); return; }
   if (lb.status === 'playing' && lb.match && !(game && game.netGame === net)) { startOnline(lb.match); return; }
   if (!host) writeSettings(lb.settings);
   for (const id of ['setMode', 'setAis', 'setDiff', 'setWin', 'setTime']) $(id).disabled = !host;
@@ -203,6 +208,12 @@ function renderLobby(lb) {
   }
 }
 
+function kicked() {
+  toast('You were removed by an admin.');
+  if (game && game !== attract) leaveMatch();
+  else { net.leave(); net = new LocalNet(); showScreen('menu'); }
+}
+
 // ---------- starting matches ----------
 function buildRoster(humans, s, seedRng) {
   const teams = s.mode === 'ffa' ? 0 : +s.mode.slice(5);
@@ -211,7 +222,7 @@ function buildRoster(humans, s, seedRng) {
     let color = h.color;
     if (!COLORS.includes(color) || used.has(color)) color = COLORS.find((c) => !used.has(c));
     used.add(color);
-    return { name: h.name, color, team: teams ? Math.min(teams, Math.max(1, h.team || 1)) : 0, ai: false, uid: h.uid || null };
+    return { name: h.name, color, team: teams ? Math.min(teams, Math.max(1, h.team || 1)) : 0, ai: false, uid: h.uid || null, admin: !!h.admin };
   });
   const free = COLORS.filter((c) => !used.has(c));
   const nameBase = Math.floor(seedRng() * 400);
@@ -221,18 +232,19 @@ function buildRoster(humans, s, seedRng) {
   return roster;
 }
 
-function startFromSetup() {
+async function startFromSetup() {
   sfx.play('click');
   const s = readSettings();
   lastSettings = s;
   if (net && net.online) {
     if (!net.isHost()) return;
     const players = Object.entries(net.lobby.players || {}).filter(([, p]) => p.online !== false).sort((a, b) => a[1].joined - b[1].joined);
-    const roster = buildRoster(players.map(([uid, p]) => ({ uid, name: p.name, color: p.color, team: p.team })), s, Math.random);
+    const admins = await net.adminUids().catch(() => new Set());
+    const roster = buildRoster(players.map(([uid, p]) => ({ uid, name: p.name, color: p.color, team: p.team, admin: admins.has(uid) })), s, Math.random);
     net.start(roster, Object.assign({}, s, { seed: (Math.random() * 2 ** 31) | 0 }));
     return;
   }
-  const roster = buildRoster([{ name: $('name').value || 'You', color: myColor, team: +$('setTeam').value }], s, Math.random);
+  const roster = buildRoster([{ name: $('name').value || 'You', color: myColor, team: +$('setTeam').value, admin: admin.on }], s, Math.random);
   net = new LocalNet();
   net.me = 1;
   beginGame(roster, Object.assign({}, s, { seed: (Math.random() * 2 ** 31) | 0 }), 1, true);
@@ -479,6 +491,7 @@ function openCtx(i, sx, sy) {
     } else add(P.allyReq.has(o) ? 'Accept alliance' : O.allyReq.has(me) ? 'Alliance requested' : 'Request alliance', 30, () => send({ k: 'ally', t: o }), !O.allyReq.has(me));
   }
   if (alive && !ter.water) add('Ping for allies', 29, () => send({ k: 'ping', x, y }));
+  if (alive && P.admin && O && o !== me && O.alive) add('Admin: wipe out', 24, () => { if (confirm(`Wipe out ${O.name}?`)) send({ k: 'adm', a: 'kill', t: o }); });
   if (net.online && O && O.uid && o !== me) {
     add(muted.has(O.uid) ? 'Unmute chat' : 'Mute chat', null, () => {
       if (muted.has(O.uid)) muted.delete(O.uid); else muted.add(O.uid);
@@ -548,6 +561,7 @@ function handleEvents() {
       case 'ability': if (mine) sfx.play('ability'); break;
       case 'sunk': if (mine) { feed('One of your ships was sunk.', 'bad'); sfx.play('boom'); } break;
       case 'bot': feed(`${nm(e.p)} disconnected. An AI took over.`); break;
+      case 'admin': feed(`${nm(e.p)} used admin: ${{ gold: '+50k gold', troops: '+50k troops', shield: 'entrench', kill: 'wiped out ' + nm(e.t) }[e.a]}`, 'bad'); break;
       case 'eliminated':
         feed(`${nm(e.p)} was eliminated.`, mine ? 'bad' : '');
         if (mine) { sfx.play('eliminated'); setBanner('You were eliminated', 'Spectating. Open Menu to leave.'); setTimeout(() => setBanner(null), 5000); }
@@ -591,6 +605,7 @@ function leaveMatch() {
   closeCtx();
   setMode(null);
   setBanner(null);
+  if (R) R.reveal = false;
   startAttract();
   showScreen('menu');
 }

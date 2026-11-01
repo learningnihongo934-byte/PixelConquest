@@ -1,26 +1,41 @@
 {
   "rules": {
+    "admins": { ".read": "auth != null" },
+    "bans": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+      }
+    },
+    "announce": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".validate": "!newData.exists() || (newData.child('t').isString() && newData.child('t').val().length <= 200)"
+    },
     "lobbies": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || data.child('host').val() === auth.uid)",
+        ".write": "auth != null && !root.child('bans').child(auth.uid).exists() && (!data.exists() || data.child('host').val() === auth.uid)",
         "host": { ".write": "auth != null && data.parent().child('players').child(auth.uid).exists()" },
         "players": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid && (!newData.exists() || !root.child('bans').child(auth.uid).exists())",
             ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length <= 16)"
           }
         },
         "inbox": {
           "$id": {
-            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid",
+            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid && root.child('lobbies').child($code).child('players').child(auth.uid).exists() && !root.child('bans').child(auth.uid).exists()",
             ".validate": "newData.child('c').isString() && newData.child('c').val().length <= 600"
           }
         },
         "hashes": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
         "chat": {
           "$id": {
-            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid && root.child('lobbies').child($code).child('players').child(auth.uid).exists()",
+            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid && root.child('lobbies').child($code).child('players').child(auth.uid).exists() && !root.child('bans').child(auth.uid).exists()",
             ".validate": "newData.child('t').isString() && newData.child('t').val().length > 0 && newData.child('t').val().length <= 140 && newData.child('n').isString() && newData.child('n').val().length <= 16 && (newData.child('ch').val() === 'all' || newData.child('ch').val() === 'ally')"
           }
         }
@@ -28,6 +43,7 @@
     },
     "open": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
       "$code": {
         ".write": "auth != null && (!root.child('lobbies').child($code).exists() || root.child('lobbies').child($code).child('host').val() === auth.uid)"
       }

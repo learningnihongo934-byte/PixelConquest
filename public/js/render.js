@@ -112,6 +112,7 @@ export class Renderer {
     return out;
   }
   canSee(s, src) {
+    if (this.reveal) return true;
     const g = this.g, me = this.me;
     if (!me || !g.players[me].alive || s.owner === me || g.allied(s.owner, me)) return true;
     if (g.near(src || this.visionSources(), s.x, s.y)) return true;
@@ -296,7 +297,7 @@ export class Renderer {
 
   troopText(P) {
     const g = this.g, me = this.me;
-    const exact = P.id === me || !me || !g.players[me].alive || g.allied(P.id, me) || (P.revealedTo.get(me) || 0) > g.tick || (g.players[me].act.radar || 0) > 0;
+    const exact = this.reveal || P.id === me || !me || !g.players[me].alive || g.allied(P.id, me) || (P.revealedTo.get(me) || 0) > g.tick || (g.players[me].act.radar || 0) > 0;
     const n = Math.round(P.troops);
     if (exact) return fmt(n);
     const mag = Math.pow(10, Math.max(0, Math.floor(Math.log10(Math.max(1, n))) - 1));

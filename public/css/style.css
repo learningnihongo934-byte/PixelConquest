@@ -168,3 +168,26 @@ h2 { font-size: 16px; color: var(--gold); }
   .bb { width: 50px; min-height: 52px; }
   .logo { font-size: 20px; }
 }
+
+/* admin panel */
+.announce { background: var(--gold); color: #14121f; padding: 8px 10px; margin: -6px 0 14px; border: 3px solid #14121f; font-size: 20px; }
+.panel.admin { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 40px); display: flex; flex-direction: column; }
+.adm-head { display: flex; justify-content: space-between; align-items: center; }
+.adm-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.adm-tabs .on { background: var(--gold); color: #14121f; }
+#admBody { overflow-y: auto; min-height: 120px; }
+#admBody h3 { font-family: var(--px); font-size: 11px; color: var(--gold); margin: 16px 0 8px; }
+.adm-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.adm-stats div { background: var(--panel2); border: 2px solid var(--line); padding: 8px 12px; min-width: 110px; }
+.adm-stats b { display: block; font-family: var(--px); font-size: 18px; color: var(--gold); }
+.adm-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.adm-row { background: var(--panel2); border: 2px solid var(--line); padding: 6px 8px; }
+.adm-row.chatline span { word-break: break-word; }
+.adm-players { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+button.sm { padding: 2px 6px; font-size: 8px; margin-left: 4px; }
+.btns.wrap { flex-wrap: wrap; }
+.tagx { font-family: var(--px); font-size: 8px; padding: 2px 4px; background: var(--line); }
+.tagx.playing { background: var(--green); color: #14121f; }
+.tagx.lobby { background: var(--blue); color: #14121f; }
+#admin textarea { width: 100%; box-sizing: border-box; background: #0f0d18; color: var(--ink); border: 2px solid var(--line); font: 20px var(--txt); padding: 6px; }
+#admin code { font-size: 16px; user-select: all; -webkit-user-select: all; }

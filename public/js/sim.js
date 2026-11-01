@@ -53,7 +53,7 @@ export class Game {
 
   newPlayer(id, r) {
     return {
-      id, name: r.name, color: r.color, team: r.team || 0, ai: !!r.ai, diff: r.diff || 'normal', uid: r.uid || null,
+      id, name: r.name, color: r.color, team: r.team || 0, ai: !!r.ai, admin: !!r.admin, diff: r.diff || 'normal', uid: r.uid || null,
       pers: id % 3, alive: true, spawned: false, spawnI: -1,
       troops: 2500, gold: 2000, tiles: 0, sumX: 0, sumY: 0,
       cap: 1000, growth: 20, goldRate: 2,
@@ -155,7 +155,21 @@ export class Game {
       case 'emote': if (Number.isInteger(c.e)) this.ev('emote', { p: c.p, e: c.e, t: c.t | 0 }); break;
       case 'ping': if (tile >= 0) this.ev('ping', { p: c.p, i: tile }); break;
       case 'surrender': this.eliminate(c.p, true); break;
+      case 'adm': this.doAdmin(c); break;
     }
+  }
+
+  // admin powers: only for roster slots the host flagged as admin (checked against /admins)
+  doAdmin(c) {
+    const P = this.players[c.p];
+    if (!P.admin || this.phase !== 'play') return;
+    const T = this.players[c.t];
+    if (c.a === 'gold') P.gold += 50000;
+    else if (c.a === 'troops') { P.cap = Math.max(P.cap, P.troops + 50000); P.troops += 50000; }
+    else if (c.a === 'shield') P.ab.entrenchUntil = this.tick + 120 * SEC;
+    else if (c.a === 'kill' && T && T.alive && T !== P) this.eliminate(T.id, true);
+    else return;
+    this.ev('admin', { p: c.p, a: c.a, t: c.t | 0 });
   }
 
   doSpawn(p, i) {
@@ -205,20 +219,71 @@ export class Game {
     const P = this.players[p];
     let a = this.attacks.find((a) => a.p === p && a.t === t);
     const fresh = !a;
-    if (fresh) a = { id: this.nextId++, p, t, troops: 0, fx, fy, cand: [], inCand: new Set(), rail: false };
-    const add = (n) => { if (this.owner[n] === t && this.claimable(n) && !a.inCand.has(n)) { a.inCand.add(n); a.cand.push(n); } };
+    if (fresh) a = { id: this.nextId++, p, t, troops: 0, fx, fy, cand: [], inCand: new Map(), rail: false };
+    const steer = !fresh && (a.fx !== fx || a.fy !== fy);
+    a.fx = fx; a.fy = fy;
+    if (steer) this.candRekey(a);
+    const add = (n) => { if (this.owner[n] === t && this.claimable(n) && !a.inCand.has(n)) this.candPush(a, n, 0); };
     if (seeds) seeds.forEach(add);
     else for (const b of P.border) this.forN(b, add);
     if (!a.cand.length) return false;
-    a.fx = fx; a.fy = fy;
     // expanding into wilderness is free: the troops stay home and only set the pace.
     // A new click re-picks the crew size; boats and paradrops never shrink it.
     if (!t) { P.troops += troops; a.troops = seeds && !fresh ? Math.max(a.troops, troops) : troops; a.prog = a.prog || 0; }
     else a.troops += troops;
-    if (P.railList.length) { const [cx, cy] = this.xy(a.cand[0]); if (this.near(P.railList, cx, cy)) a.rail = true; }
+    if (P.railList.length) { const [cx, cy] = this.xy(a.cand[0].i); if (this.near(P.railList, cx, cy)) a.rail = true; }
     if (fresh) this.attacks.push(a);
     if (t) { this.setHostile(p, t); this.ev('attack', { p, t, troops }); }
     return true;
+  }
+
+  // Attack fronts are a priority queue: tiles nearer the starting border (lower depth) go first,
+  // so the front rolls forward as a solid line. The click point bends it into a bulge, and
+  // tiles already hugged by our land are favoured so no holes are left behind.
+  candKey(a, i, depth) {
+    const [x, y] = this.xy(i);
+    let own = 0;
+    this.forN(i, (m) => { if (this.owner[m] === a.p) own++; });
+    return depth + Math.sqrt((x - a.fx) ** 2 + (y - a.fy) ** 2) * 0.35 - own * 0.25;
+  }
+
+  candLess(e, f) { return e.k < f.k || (e.k === f.k && e.i < f.i); }
+
+  candPush(a, i, depth) {
+    const h = a.cand, e = { i, d: depth, k: this.candKey(a, i, depth) };
+    a.inCand.set(i, depth);
+    let c = h.length;
+    h.push(e);
+    while (c > 0) {
+      const p = (c - 1) >> 1;
+      if (!this.candLess(e, h[p])) break;
+      h[c] = h[p]; c = p;
+    }
+    h[c] = e;
+  }
+
+  candPop(a) {
+    const h = a.cand, top = h[0], last = h.pop();
+    if (h.length) {
+      let c = 0;
+      for (;;) {
+        const l = 2 * c + 1, r = l + 1;
+        let m = c, best = last;
+        if (l < h.length && this.candLess(h[l], best)) { m = l; best = h[l]; }
+        if (r < h.length && this.candLess(h[r], best)) { m = r; best = h[r]; }
+        if (m === c) break;
+        h[c] = h[m]; c = m;
+      }
+      h[c] = last;
+    }
+    a.inCand.delete(top.i);
+    return top;
+  }
+
+  // the player clicked a new target: re-aim the whole front (a sorted array is a valid heap)
+  candRekey(a) {
+    for (const e of a.cand) e.k = this.candKey(a, e.i, e.d);
+    a.cand.sort((e, f) => e.k - f.k || e.i - f.i);
   }
 
   tileCost(a, i) {
@@ -258,27 +323,14 @@ export class Game {
     }
     while (n-- > 0 && a.cand.length) {
       if (wild && a.prog < 1) break;
-      let bk = -1, bs = 1e18;
-      const tries = Math.min(4, a.cand.length);
-      for (let s = 0; s < tries; s++) {
-        const k = this.rng.int(a.cand.length);
-        const i = a.cand[k];
-        const [x, y] = this.xy(i);
-        let own = 0;
-        this.forN(i, (m) => { if (this.owner[m] === a.p) own++; });
-        const sc = Math.sqrt((x - a.fx) ** 2 + (y - a.fy) ** 2) - own * 1.5;
-        if (sc < bs) { bs = sc; bk = k; }
-      }
-      const i = a.cand[bk];
-      a.cand[bk] = a.cand[a.cand.length - 1];
-      a.cand.pop();
-      a.inCand.delete(i);
+      const { i, d } = this.candPop(a);
+      const grow = (m) => { if (this.owner[m] === a.t && this.claimable(m) && !a.inCand.has(m)) this.candPush(a, m, d + 1); };
       if (this.owner[i] !== a.t || !this.claimable(i)) continue;
       if (wild) {
         a.prog -= TERRAIN[this.terrain[i]].cost;
         P.stats.taken++;
         this.setOwner(i, a.p);
-        this.forN(i, (m) => { if (this.owner[m] === 0 && this.claimable(m) && !a.inCand.has(m)) { a.inCand.add(m); a.cand.push(m); } });
+        this.forN(i, grow);
         continue;
       }
       const cost = this.tileCost(a, i);
@@ -292,7 +344,7 @@ export class Game {
       }
       P.stats.taken++;
       this.setOwner(i, a.p);
-      this.forN(i, (m) => { if (this.owner[m] === a.t && this.claimable(m) && !a.inCand.has(m)) { a.inCand.add(m); a.cand.push(m); } });
+      this.forN(i, grow);
     }
     return a.cand.length === 0;
   }

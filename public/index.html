@@ -20,6 +20,7 @@
 <!-- main menu -->
 <section id="menu" class="screen">
   <div class="panel menu-panel">
+    <div id="announce" class="announce hidden"></div>
     <h1 class="logo"><span class="ico" style="--i:0"></span>PIXEL<br>CONQUEST</h1>
     <p class="tag">Grow a nation on a real world map. Build, ally, betray, conquer.</p>
     <label class="field">Your name <input id="name" maxlength="16" autocomplete="off"></label>
@@ -38,6 +39,7 @@
       <label><input type="checkbox" id="optSfx"> Sound effects</label>
       <label><input type="checkbox" id="optMusic"> Music</label>
       <button id="btnHelp" class="ghost">How to play</button>
+      <button id="btnAdmin" class="ghost hidden">Admin</button>
     </div>
   </div>
 </section>
@@ -109,6 +111,7 @@
       <div class="btns col">
         <button id="gmResume">Resume</button>
         <button id="gmHelp" class="ghost">How to play</button>
+        <button id="gmAdmin" class="ghost hidden">Admin panel</button>
         <button id="gmSurrender" class="ghost">Surrender</button>
         <button id="gmLeave" class="ghost">Leave match</button>
       </div>
@@ -133,6 +136,14 @@
       <li><b>Win</b> by holding the target share of the world's land, by being the last one standing, or by having the most land when time runs out.</li>
     </ul>
     <div class="btns"><button id="helpClose" class="big">Got it</button></div>
+  </div>
+</section>
+
+<section id="admin" class="modal hidden">
+  <div class="panel admin">
+    <div class="adm-head"><h2>Admin</h2><button id="admClose" class="ghost">Close</button></div>
+    <div id="admTabs" class="adm-tabs hidden"><button class="ghost" data-t="overview">Overview</button><button class="ghost" data-t="lobbies">Lobbies</button><button class="ghost" data-t="chat">Chat</button><button class="ghost" data-t="bans">Bans</button><button class="ghost" data-t="announce">Announce</button></div>
+    <div id="admBody"></div>
   </div>
 </section>
 

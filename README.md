@@ -19,6 +19,7 @@ Pixel Conquest is a real-time pixel-art strategy game in the browser. You grow a
   - **Retreat:** recall your attacks.
   - **Fog of war:** enemy structures are hidden, and enemy troop counts are estimates.
   - **Alliances:** capped at 3, and breaking one gives a 10-second warning and a traitor penalty.
+  - **Linear attack fronts:** attacks roll forward as a solid wave from your border and bulge toward where you clicked, with no scattered dots or jumps.
   - **Communication:** text chat in the lobby and in-game, with All and Allies-only channels, a swear filter, a rate limit and per-player mute. Quick-chat emotes and ally pings too.
 - **Modes:** free for all or 2, 3 or 4 teams. You can win by land share, by being last standing, or on a time limit.
 - **AI nations:** four difficulties (Easy, Normal, Hard, Brutal) and three personalities (economist, warmonger, turtle). They expand, build, form and break alliances, invade by sea and air, and fire missiles.
@@ -70,3 +71,12 @@ Online play needs a Firebase project with **Anonymous** sign-in and a **Realtime
 - **Camera:** drag to pan, scroll to zoom.
 
 Made by **Virat Reddy Kaukuntla** ([@learningnihongo934-byte](https://github.com/learningnihongo934-byte))
+
+## Admin panel
+
+Open `https://pixelconquest.web.app/#admin` and sign in with Google. Only accounts listed under `/admins` in the Realtime Database are admins (add one with `firebase database:set /admins/<uid> --data true`); the database rules enforce it. Admins get an **Admin** button on the menu and in the in-game menu:
+
+- **Overview:** players online, live matches, waiting lobbies, bans. In a match: +50k gold, +50k troops, 2-minute entrench, reveal fog of war, and "Admin: wipe out" in the right-click menu (everyone in the match sees admin actions).
+- **Lobbies:** delete lobbies, kick or ban players, clean up ended and stale lobbies.
+- **Chat:** recent messages from every lobby, with delete and ban.
+- **Bans / Announce:** unban players; post a banner shown on everyone's main menu.
